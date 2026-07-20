@@ -255,6 +255,7 @@ env/
 
 data/raw/*
 data/processed/*
+*.zip
 
 # =========================
 # Système
@@ -263,3 +264,8 @@ data/processed/*
 .DS_Store
 Thumbs.db
 
+# =========================
+# Github
+# =========================
+
+.github

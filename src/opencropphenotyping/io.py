@@ -1,4 +1,5 @@
 from pathlib import Path
+import profile
 import numpy as np
 import rasterio
 
@@ -50,3 +51,30 @@ def find_band(safe_path: Path, band: str) -> Path:
     r10m_dir = granule_dir / "IMG_DATA" / "R10m"
     band_file = next(r10m_dir.glob(f"*_{band}_10m.jp2"))
     return band_file
+
+def write_raster(image: np.ndarray, 
+                 profile: dict, 
+                 output_path: Path) -> None:
+    """
+    Write a raster image to a file.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Raster values to write.
+    profile : dict
+        Raster metadata.
+    output_path : Path
+        Path to the output raster file.
+    """
+
+    # Update the profile for the output raster, as its dtype and count may differ from the input
+    profile = profile.copy()
+    profile.update(
+        dtype="float32",
+        count=1,
+        driver="GTiff",
+    )
+
+    with rasterio.open(output_path, 'w', **profile) as dst:
+        dst.write(image, 1) # Select first band for writing
