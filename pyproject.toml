@@ -27,3 +27,12 @@ dev = [
     "ruff",
     "jupyter",
 ]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests"
+]
+pythonpath = [
+    "src"
+]
+addopts = "-v"

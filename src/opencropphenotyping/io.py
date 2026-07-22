@@ -1,5 +1,4 @@
 from pathlib import Path
-import profile
 import numpy as np
 import rasterio
 
@@ -20,6 +19,10 @@ def read_band(filepath: Path) -> tuple[np.ndarray, dict]:
     profile : dict
         Raster metadata.
     """
+    ## Ensure the file exists
+    if not filepath.exists():
+        raise FileNotFoundError(f"File not found: {filepath}")
+
     with rasterio.open(filepath) as src:
         image = src.read(1)
         profile = src.profile
@@ -29,6 +32,10 @@ def find_granule(safe_path: Path) -> Path:
     """
     Find the granule directory inside a Sentinel-2 SAFE product.
     """
+    ## Ensure the file exists
+    if not safe_path.exists():
+        raise FileNotFoundError(f"SAFE path not found: {safe_path}")
+
     return next((safe_path / "GRANULE").iterdir())
 
 def find_band(safe_path: Path, band: str) -> Path:
@@ -47,8 +54,18 @@ def find_band(safe_path: Path, band: str) -> Path:
     Path
         Path to the band file.
     """
+
     granule_dir = find_granule(safe_path)
     r10m_dir = granule_dir / "IMG_DATA" / "R10m"
+
+    ## Raise an error if the R10m directory does not exist
+    if not r10m_dir.exists():
+        raise FileNotFoundError(f"R10m directory not found in granule: {granule_dir}")
+
+    ## Raise an error if the band file does not exist
+    if len(list(r10m_dir.glob(f"*_{band}_10m.jp2"))) == 0:
+        raise FileNotFoundError(f"Band file not found: {band}")
+
     band_file = next(r10m_dir.glob(f"*_{band}_10m.jp2"))
     return band_file
 
