@@ -7,7 +7,7 @@ OpenCropPhenotyping is an open-source project dedicated to reproducible high-thr
 The objective is to provide reproducible workflows to extract agronomic traits from UAV and Sentinel-2 imagery, from raw image preprocessing to trait extraction, statistical analysis and visualization. The first developments focus on major field crops such as maize, with the possibility of extending the framework to other crops in future releases.
 
 ## Current Features:
-- [ ] NDVI computation 
+- [X] NDVI computation 
 - [ ] NDRE computation 
 - [ ] Vegetation masking 
 - [ ] Statistical analysis 
@@ -50,10 +50,22 @@ Complete crop phenotyping workflow
 This project is intended for researchers, agronomists, engineers working in remote sensing, as well as for UAV practitioners and interested students. The project is also suitable for anyone wishing to learn how to process drone or Sentinel-2 imagery using Python.
 
 ## Installation
-Coming soon.
+
+git clone ...
+
+cd OpenCropPhenotyping
+
+conda env create -f environment.yml
+
+conda activate opencropphenotyping
+
+pip install -e .
 
 ## How to use
-Coming soon.
+
+The repository already includes a small Sentinel-2 toy dataset.
+
+No additional data download is required to run the examples
 
 ## Example workflow
 
@@ -79,7 +91,8 @@ Statistics
 
 Export
 
-## Contributing Contributions are welcome. If you have ideas for improvements, bug fixes or new features, feel free to open an issue or submit a pull request.
+## Contributing 
+Contributions are welcome. If you have ideas for improvements, bug fixes or new features, feel free to open an issue or submit a pull request.
 
 ## Documentation
 Documentation will be progressively added as the project evolves.
@@ -88,5 +101,5 @@ Documentation will be progressively added as the project evolves.
 This project follows Semantic Versioning (SemVer). 
 See the Releases page for available versions and change logs.
 
-## Licence
-See the LICENCE file.
+## LICENSE
+See the LICENSE file.
