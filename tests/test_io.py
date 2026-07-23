@@ -1,4 +1,4 @@
-from opencropphenotyping.io import read_band, find_band, find_granule, write_raster
+from opencropphenotyping.io import read_band, find_band, find_granule, write_raster, write_png
 import numpy as np
 import pytest
 import rasterio
@@ -98,6 +98,11 @@ def test_read_band_wrong_directory():
     with pytest.raises(FileNotFoundError):
         read_band(Path("C:/wrong/path/B04_10m.jp2"))  # Assuming this directory does not exist
 
+def test_find_granulule_wrong_directory():
+    # Test find_granule function with a wrong directory
+    with pytest.raises(FileNotFoundError):
+        find_granule(Path("C:/wrong/path"))  # Assuming this directory does not exist
+
 def test_write_raster(tmp_path):
     # Test write_raster function
     image = np.random.rand(100, 100).astype(np.float32)
@@ -120,3 +125,40 @@ def test_write_raster(tmp_path):
     assert profile2['width'] == 100 and profile2['height'] == 100, "Output raster file does not have the correct shape."
     assert profile2['count'] == 1, "Output raster file does not have the correct count."
     assert profile2['crs'] == "EPSG:4326", "Output raster file does not have the correct CRS."
+
+def test_write_raster_nonexistent_directory(tmp_path):
+    # Test write_raster function with a non-existent directory
+    image = np.random.rand(100, 100).astype(np.float32)
+    profile = {
+        'driver': 'GTiff',
+        'dtype': 'float32',
+        'count': 1,
+        'width': 100,
+        'height': 100,
+        'crs': "EPSG:4326",
+        'transform': None
+    }
+    output_path = tmp_path / "nonexistent_dir" / "output.tif"
+    with pytest.raises(FileNotFoundError):
+        write_raster(image, profile, output_path)
+
+def test_write_png(tmp_path):
+    # Test write_png function
+    image = np.random.rand(100, 100).astype(np.float32)
+    output_path = tmp_path / "output.png"
+    write_png(image, output_path)
+    assert output_path.exists(), "PNG file was not created."
+
+def test_write_png_nonexistent_directory(tmp_path):
+    # Test write_png function with a non-existent directory
+    image = np.random.rand(100, 100).astype(np.float32)
+    output_path = tmp_path / "nonexistent_dir" / "output.png"
+    with pytest.raises(FileNotFoundError):
+        write_png(image, output_path)
+
+def test_write_png_wrong_dimension(tmp_path):
+    # Test write_png function with a non-2D array
+    image = np.random.rand(100, 100, 3).astype(np.float32)  # 3D array
+    output_path = tmp_path / "output.png"
+    with pytest.raises(ValueError, match="Raster image must be a 2D array."):
+        write_png(image, output_path)

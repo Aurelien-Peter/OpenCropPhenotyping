@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
 import rasterio
 
 def read_band(filepath: Path) -> tuple[np.ndarray, dict]:
@@ -84,6 +85,9 @@ def write_raster(image: np.ndarray,
     output_path : Path
         Path to the output raster file.
     """
+    # Raise an error if the output directory does not exist
+    if not output_path.parent.exists():
+        raise FileNotFoundError(f"Output directory does not exist: {output_path.parent}")
 
     # Update the profile for the output raster, as its dtype and count may differ from the input
     profile = profile.copy()
@@ -95,3 +99,26 @@ def write_raster(image: np.ndarray,
 
     with rasterio.open(output_path, 'w', **profile) as dst:
         dst.write(image, 1) # Select first band for writing
+
+def write_png(image: np.ndarray, 
+             output_path: Path,
+             cmap='gray') -> None:
+    """
+    Save a raster image as a PNG file.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Raster values to save.
+    output_path : Path
+        Path to the output PNG file.
+    """
+    # Raise an error if the output directory does not exist
+    if not output_path.parent.exists():
+        raise FileNotFoundError(f"Output directory does not exist: {output_path.parent}")
+
+    # Raise an error if the input image is not 2D
+    if image.ndim != 2:
+        raise ValueError("Raster image must be a 2D array.")
+
+    plt.imsave(output_path, image, cmap=cmap)

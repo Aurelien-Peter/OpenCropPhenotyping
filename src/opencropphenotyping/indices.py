@@ -72,11 +72,6 @@ def compute_ndvi(red_band : np.ndarray, nir_band : np.ndarray) -> np.ndarray:
     np.ndarray
         NDVI image.
     """
-
-    ## Raise an error if the input bands do not have the same shape
-    if red_band.shape != nir_band.shape:
-        raise ValueError("Red and NIR bands must have the same shape.")
-
     return compute_normalized_difference_index(nir_band, red_band)
 
 def compute_ndre(nir_band : np.ndarray, red_edge_band : np.ndarray) -> np.ndarray:
@@ -95,10 +90,5 @@ def compute_ndre(nir_band : np.ndarray, red_edge_band : np.ndarray) -> np.ndarra
     -------
     np.ndarray
         NDRE image.
-    """
-
-    ## Raise an error if the input bands do not have the same shape
-    if red_edge_band.shape != nir_band.shape:
-        raise ValueError("Red edge and NIR bands must have the same shape.")
-    
+    """    
     return compute_normalized_difference_index(nir_band, red_edge_band)
