@@ -8,7 +8,7 @@ The objective is to provide reproducible workflows to extract agronomic traits f
 
 ## Current Features:
 - [X] NDVI computation 
-- [ ] NDRE computation 
+- [X] NDRE computation 
 - [ ] Vegetation masking 
 - [ ] Statistical analysis 
 - [ ] Visualization
@@ -24,23 +24,61 @@ Current case studies:
 ## Roadmap
 
 ### Version 0.1
+#### Sentinel-2
 
 - Read Sentinel-2 imagery
 - NDVI computation
 - Visualization
+- GeoTIFF export
+- PNG export
+- Toy dataset
+- Unit tests
+
+---
 
 ### Version 0.2
+#### Vegetation indices
 
 - NDRE
 - SAVI
 - GNDVI
 - Statistics
+- Batch processing
+- Command-line interface (CLI)
+
+---
 
 ### Version 0.3
+#### Drone imagery
 
 - UAV imagery
+- Orthomosaic support
 - Canopy cover
 - Vegetation segmentation
+- RGB vegetation indices
+- Image tiling
+
+---
+
+### Version 0.4
+#### Machine Learning
+
+- Feature extraction
+- Dataset preparation
+- Classical classifiers (Random Forest, SVM)
+- Crop classification
+- Model evaluation
+- Model persistence
+
+### Version 0.5
+#### Deep Learning
+
+- PyTorch support
+- CNN semantic segmentation
+- U-Net implementation
+- Training pipeline
+- Inference pipeline
+- Model visualization
 
 ### Version 1.0
 
@@ -69,15 +107,17 @@ No additional data download is required to run the examples
 
 ## Example workflow
 
-Sentinel-2 image
+Sentinel-2 Red band (B04)
+![B04](docs/images/red.png)
+
+Sentinel-2 Near Infra Red band (B08)
+![B08](docs/images/nir.png)
 
 ↓
 
 NDVI computation
 
-↓
-
-Visualization
+![NDVI](docs/images/ndvi.png)
 
 ↓
 
