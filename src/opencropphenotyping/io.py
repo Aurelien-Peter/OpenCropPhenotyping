@@ -1,7 +1,9 @@
 from pathlib import Path
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 import rasterio
+
 
 def read_band(filepath: Path) -> tuple[np.ndarray, dict]:
     """
@@ -29,6 +31,7 @@ def read_band(filepath: Path) -> tuple[np.ndarray, dict]:
         profile = src.profile
     return image, profile
 
+
 def find_granule(safe_path: Path) -> Path:
     """
     Find the granule directory inside a Sentinel-2 SAFE product.
@@ -38,6 +41,7 @@ def find_granule(safe_path: Path) -> Path:
         raise FileNotFoundError(f"SAFE path not found: {safe_path}")
 
     return next((safe_path / "GRANULE").iterdir())
+
 
 def find_band(safe_path: Path, band: str) -> Path:
     """
@@ -70,9 +74,8 @@ def find_band(safe_path: Path, band: str) -> Path:
     band_file = next(r10m_dir.glob(f"*_{band}_10m.jp2"))
     return band_file
 
-def write_raster(image: np.ndarray, 
-                 profile: dict, 
-                 output_path: Path) -> None:
+
+def write_raster(image: np.ndarray, profile: dict, output_path: Path) -> None:
     """
     Write a raster image to a file.
 
@@ -97,12 +100,11 @@ def write_raster(image: np.ndarray,
         driver="GTiff",
     )
 
-    with rasterio.open(output_path, 'w', **profile) as dst:
-        dst.write(image, 1) # Select first band for writing
+    with rasterio.open(output_path, "w", **profile) as dst:
+        dst.write(image, 1)  # Select first band for writing
 
-def write_png(image: np.ndarray, 
-             output_path: Path,
-             cmap='gray') -> None:
+
+def write_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
     """
     Save a raster image as a PNG file.
 

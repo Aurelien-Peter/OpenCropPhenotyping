@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 def display_raster(
     image: np.ndarray,
     cmap: str = "RdYlGn",
@@ -29,6 +30,6 @@ def display_raster(
     if title:
         plt.title(title)
     plt.colorbar(img)
-    plt.axis('off')
+    plt.axis("off")
     plt.tight_layout()
     plt.show()

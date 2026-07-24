@@ -4,13 +4,15 @@ import pytest
 
 from opencropphenotyping.io import read_band
 
-## Create paths 
+
+## Create paths
 @pytest.fixture
 def project_root():
     return Path(__file__).resolve().parents[1]
 
+
 def test_toy_dataset(project_root):
-    toy_dir = project_root / "data" / "toy dataset"
+    toy_dir = project_root / "data" / "toy_dataset"
 
     b04 = toy_dir / "toy_image_b04.tif"
     b08 = toy_dir / "toy_image_b08.tif"

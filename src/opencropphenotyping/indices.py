@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def _prepare_bands(band1: np.ndarray, band2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Prepare the input bands for index computation.
@@ -26,6 +27,7 @@ def _prepare_bands(band1: np.ndarray, band2: np.ndarray) -> tuple[np.ndarray, np
 
     return band1, band2
 
+
 def compute_normalized_difference_index(band1: np.ndarray, band2: np.ndarray) -> np.ndarray:
     """
     Compute the Normalized Difference Index (NDI) from the given two bands.
@@ -48,14 +50,12 @@ def compute_normalized_difference_index(band1: np.ndarray, band2: np.ndarray) ->
     # Compute NDI using the formula: (band1 - band2) / (band1 + band2)
     denominator = band1 + band2
     numerator = band1 - band2
-    ndi = np.divide(numerator, 
-                    denominator, 
-                    out=np.zeros_like(denominator), 
-                    where=denominator!=0)
+    ndi = np.divide(numerator, denominator, out=np.zeros_like(denominator), where=denominator != 0)
 
     return ndi.astype(np.float32)
 
-def compute_ndvi(red_band : np.ndarray, nir_band : np.ndarray) -> np.ndarray:
+
+def compute_ndvi(red_band: np.ndarray, nir_band: np.ndarray) -> np.ndarray:
     """
     Compute the Normalized Difference Vegetation Index (NDVI) from the given red and near-infrared (NIR) bands.
 
@@ -74,7 +74,8 @@ def compute_ndvi(red_band : np.ndarray, nir_band : np.ndarray) -> np.ndarray:
     """
     return compute_normalized_difference_index(nir_band, red_band)
 
-def compute_ndre(nir_band : np.ndarray, red_edge_band : np.ndarray) -> np.ndarray:
+
+def compute_ndre(nir_band: np.ndarray, red_edge_band: np.ndarray) -> np.ndarray:
     """
     Compute the Normalized Difference Red Edge Index (NDRE) from the given red and red edge bands.
 
@@ -90,5 +91,5 @@ def compute_ndre(nir_band : np.ndarray, red_edge_band : np.ndarray) -> np.ndarra
     -------
     np.ndarray
         NDRE image.
-    """    
+    """
     return compute_normalized_difference_index(nir_band, red_edge_band)
