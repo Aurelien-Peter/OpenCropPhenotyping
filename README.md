@@ -119,6 +119,10 @@ NDVI computation
 
 ![NDVI](docs/images/ndvi.png)
 
+NDRE computation
+
+![NDRE](docs/images/ndre.png)
+
 ↓
 
 Trait extraction
