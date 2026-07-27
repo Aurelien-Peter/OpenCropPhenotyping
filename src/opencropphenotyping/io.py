@@ -1,8 +1,11 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from PIL.Image import Resampling
 import numpy as np
 import rasterio
+from rasterio.enums import Resampling
+from rasterio.warp import reproject
 
 
 def read_band(filepath: Path) -> tuple[np.ndarray, dict]:
@@ -43,7 +46,7 @@ def find_granule(safe_path: Path) -> Path:
     return next((safe_path / "GRANULE").iterdir())
 
 
-def find_band(safe_path: Path, band: str) -> Path:
+def find_band(safe_path: Path, band: str, resolution: int | None) -> Path:
     """
     Find the path to a specific band in a Sentinel-2 SAFE directory.
 
@@ -53,6 +56,8 @@ def find_band(safe_path: Path, band: str) -> Path:
         Path to the Sentinel-2 SAFE directory.
     band : str
         Band identifier (e.g., 'B04', 'B08').
+    resolution : int | None
+        Target resolution for the band file.
 
     Returns
     -------
@@ -61,17 +66,27 @@ def find_band(safe_path: Path, band: str) -> Path:
     """
 
     granule_dir = find_granule(safe_path)
-    r10m_dir = granule_dir / "IMG_DATA" / "R10m"
+    img_data_dir = granule_dir / "IMG_DATA"
 
-    ## Raise an error if the R10m directory does not exist
-    if not r10m_dir.exists():
-        raise FileNotFoundError(f"R10m directory not found in granule: {granule_dir}")
+    if(resolution is not None):
+        img_data_dir = img_data_dir / f"R{resolution}m"
+
+    ## Raise an error if the img_data_dir directory does not exist
+    if not img_data_dir.exists():
+        raise FileNotFoundError(f"IMG_DATA directory not found: {img_data_dir}")
+
+    # Search band file in all subdirectories of the granule directory
+    band_files = list(img_data_dir.rglob(f"*_{band}_*.jp2"))
 
     ## Raise an error if the band file does not exist
-    if len(list(r10m_dir.glob(f"*_{band}_10m.jp2"))) == 0:
-        raise FileNotFoundError(f"Band file not found: {band}")
+    if len(band_files) == 0:
+        raise FileNotFoundError(f"Band file not found: {band} in {img_data_dir}")
 
-    band_file = next(r10m_dir.glob(f"*_{band}_10m.jp2"))
+    ## Raise an error if there are multiple band files
+    if len(band_files) > 1:
+        raise FileExistsError(f"Multiple band files found for {band}: {band_files}")
+
+    band_file = next(img_data_dir.rglob(f"*_{band}_*.jp2"))
     return band_file
 
 
@@ -124,3 +139,87 @@ def write_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
         raise ValueError("Raster image must be a 2D array.")
 
     plt.imsave(output_path, image, cmap=cmap)
+
+
+def resample_raster(image: np.ndarray, 
+                  profile: dict, 
+                  target_resolution: float | None = None,
+                  target_profile: dict | None = None,
+                  resampling: Resampling = Resampling.bilinear,
+                  ) -> tuple[np.ndarray, dict]:
+    """
+    Resample a raster image to a target resolution.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Input raster values.
+    profile : dict
+        Raster metadata.
+    target_resolution : float | None
+        Target resolution for the resampled image.
+    target_profile : dict | None
+        Target raster metadata for the resampled image.
+
+    Returns
+    -------
+    numpy.ndarray
+        Resampled raster values.
+    resampled_profile : dict
+        Updated raster metadata for the resampled image.
+    """
+    # Check that the image is 2D
+    if image.ndim != 2:
+        raise ValueError("Raster image must be a 2D array.")
+
+    # Check that either target_resolution or target_profile is provided
+    if(target_resolution is None and target_profile is None):
+        raise ValueError("Either target_resolution or target_profile must be provided.")
+
+    # Check that target resolution > 0
+    if(target_resolution is not None and target_resolution <= 0):
+        raise ValueError("target_resolution must be greater than 0.")
+
+    # Get target shape based on either target_resolution or target_profile
+    if(target_resolution is not None):
+        # If target_resolution is provided, calculate the target shape based on the desired resolution
+        target_height = round(image.shape[0] * abs(profile['transform'].e) / target_resolution)
+        target_width = round(image.shape[1] * abs(profile['transform'].a) / target_resolution)
+        target_shape = (target_height, target_width)
+    else:
+        # If target_profile is provided, use its height and width for the target shape
+        assert target_profile is not None
+        target_height = target_profile['height']
+        target_width = target_profile['width']
+        target_shape = (target_height, target_width)
+        # Calculate the target resolution based on the target profile's transform
+        target_resolution = abs(target_profile['transform'].a)
+
+    # Get the updated profile for the resampled image
+    resampled_profile = profile.copy()
+    resampled_profile.update(
+        height=target_height,
+        width=target_width,
+        transform=rasterio.Affine(
+            target_resolution, profile['transform'].b, profile['transform'].c,
+            profile['transform'].d, -target_resolution, profile['transform'].f
+        )
+    )
+
+    # Create the destination array for the resampled image
+    resampled_image = np.empty(target_shape, dtype=np.float32)
+
+    # Resample the image to the target shape using bilinear interpolation
+    if target_shape != image.shape:
+        resampled_image = reproject(
+            source=image,
+            destination=resampled_image,
+            src_transform=profile['transform'],
+            src_crs=profile['crs'],
+            dst_crs=profile['crs'],
+            dst_transform=resampled_profile['transform'],
+            dst_nodata=profile.get('nodata'),
+            resampling=resampling
+        )[0]
+
+    return resampled_image, resampled_profile
