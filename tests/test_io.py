@@ -5,7 +5,7 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from opencropphenotyping.io import find_band, find_granule, read_band, write_png, write_raster
+from opencropphenotyping.io import find_band, find_granule, read_band, write_png, write_raster, resample_raster
 
 
 ## Create paths
@@ -18,30 +18,44 @@ def project_root():
 def safe_dir(project_root):
     return project_root / "data" / "raw" / "sentinel_2" / "S2A_MSIL2A_20250804T104701_N0511_R051_T31TCJ_20250804T161517.SAFE"
 
+## Create variables
+@pytest.fixture
+def raster_profile():
+    return {
+        "driver": "GTiff",
+        "dtype": "float32",
+        "count": 1,
+        "width": 100,
+        "height": 100,
+        "crs": "EPSG:4326",
+        "transform": rasterio.Affine(10, 0, 0, 0, -10, 0),
+    }
 
 ## Perform tests
 def test_find_band_success(safe_dir):
     # Test find_band function
-    band_path = find_band(safe_dir, "B04")
+    band_path = find_band(safe_dir, "B04", resolution = 10)
     assert band_path.exists(), "Band path does not exist."
     assert band_path.name.endswith("_B04_10m.jp2"), "Band path does not point to the correct file."
-
 
 def test_find_band_wrong_directory():
     # Test find_band function with a wrong directory
     with pytest.raises(FileNotFoundError):
-        find_band(Path("C:/wrong/path"), "B04")  # Assuming this directory does not exist
-
+        find_band(Path("C:/wrong/path"), "B04", resolution = 10)  # Assuming this directory does not exist
 
 def test_find_band_unknown_band(safe_dir):
     # Test find_band function with an unknown band
     with pytest.raises(FileNotFoundError):
-        find_band(safe_dir, "B99")  # Assuming B99 does not exist in the structure
+        find_band(safe_dir, "B99", resolution = 10)  # Assuming B99 does not exist in the structure
 
+def test_find_band_multiple_bands(safe_dir):
+    # Test find_band function with multiple bands found
+    with pytest.raises(FileExistsError):
+        find_band(safe_dir, "B04", resolution = None)
 
 def test_read_band_success(safe_dir):
     # Test read_band function
-    band_path = find_band(safe_dir, "B04")
+    band_path = find_band(safe_dir, "B04", resolution = 10)
     image, profile = read_band(band_path)
     assert isinstance(image, np.ndarray), "Image is not a numpy array."
     assert image.ndim == 2, "Image is not 2D."
@@ -160,3 +174,66 @@ def test_write_png_wrong_dimension(tmp_path):
     output_path = tmp_path / "output.png"
     with pytest.raises(ValueError, match="Raster image must be a 2D array."):
         write_png(image, output_path)
+
+def test_resample_raster_3d(raster_profile):
+    # Test resample_master function with non-2D arrays
+    image_3D = np.random.rand(100, 100, 3).astype(np.float32)  # 3D array
+    with pytest.raises(ValueError, match="Raster image must be a 2D array."):
+        resample_raster(image_3D, 
+                        profile=raster_profile, 
+                        target_resolution = 10)
+
+
+def test_resample_raster_1d(raster_profile):
+    # Test resample_master function with non-2D arrays
+    image_1D = np.random.rand(100).astype(np.float32)  # 1D array
+    with pytest.raises(ValueError, match="Raster image must be a 2D array."):
+        resample_raster(image_1D, 
+                        profile=raster_profile, 
+                        target_resolution = 10)
+
+def test_resample_raster_missing_target(raster_profile):
+    # Test resample_master function without targets
+    image = np.random.rand(100, 100).astype(np.float32)
+    with pytest.raises(ValueError, match="Either target_resolution or target_profile must be provided."):
+        resample_raster(image, 
+                        profile=raster_profile, 
+                        target_resolution = None,
+                        target_profile=None)
+
+def test_resample_raster_invalid_resolution(raster_profile):
+    # Test resample_master with negative resolution
+    image = np.random.rand(100, 100).astype(np.float32)
+    with pytest.raises(ValueError, match="target_resolution must be greater than 0."):
+        resample_raster(image, 
+                        profile=raster_profile, 
+                        target_resolution=-10)
+
+def test_resample_raster_target_resolution(raster_profile):
+    # Test resample_master specifiying target resolution
+    image = np.random.rand(100, 100).astype(np.float32)
+    resampled_image, resampled_profile = resample_raster(image, 
+                    profile=raster_profile, 
+                    target_resolution=5)
+    assert resampled_image.shape == (200, 200)
+    assert resampled_profile["height"] == 200
+    assert resampled_profile["width"] == 200
+    assert abs(resampled_profile["transform"].a) == 5
+    assert resampled_image.dtype == np.float32
+
+def test_resample_raster_target_profile(raster_profile):
+    # Test resample_master specifiying target profile
+    image = np.random.rand(100, 100).astype(np.float32)
+    target_profile = raster_profile.copy()
+    target_profile.update(
+        width=300,
+        height=150,
+    )
+    resampled_image, resampled_profile = resample_raster(image, 
+                    profile=raster_profile, 
+                    target_profile=target_profile)
+    assert resampled_image.shape == (150, 300)
+    assert resampled_profile["height"] == 150
+    assert resampled_profile["width"] == 300
+    assert resampled_image.dtype == np.float32
+
