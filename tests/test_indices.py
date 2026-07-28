@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from opencropphenotyping.indices import _prepare_bands, compute_ndre, compute_ndvi, compute_normalized_difference_index
+from opencropphenotyping.indices import _prepare_bands, compute_ndre, compute_ndvi, compute_gndvi, compute_savi, compute_normalized_difference_index
 
 
 def test__prepare_bands_shape_error():
@@ -76,3 +76,77 @@ def test_ndre_type():
     nir_band = np.array([3, 4], dtype=np.int32)
     computed_ndre = compute_ndre(nir_band, red_edge_band)
     assert computed_ndre.dtype == np.float32, "ndre output type is not float32."
+
+def test_gndvi_simple():
+    nir_band = np.array([3, 4])
+    green_band = np.array([1, 2])
+    expected_gndvi = (nir_band - green_band) / (nir_band + green_band)
+    computed_gndvi = compute_gndvi(nir_band, green_band)
+    assert np.allclose(computed_gndvi, expected_gndvi), "gndvi computation failed for simple case."
+
+def test_gndvi_zero_division():
+    green_band = np.array([0, 0])
+    nir_band = np.array([0, 0])
+    expected_gndvi = np.array([0.0, 0.0])
+    computed_gndvi = compute_gndvi(nir_band, green_band)
+    assert np.allclose(computed_gndvi, expected_gndvi), "gndvi computation failed for zero division case."
+
+
+def test_gndvi_large_values():
+    green_band = np.array([1000, 2000])
+    nir_band = np.array([3000, 4000])
+    expected_gndvi = (nir_band - green_band) / (nir_band + green_band)
+    computed_gndvi = compute_gndvi(nir_band, green_band)
+    assert np.allclose(computed_gndvi, expected_gndvi), "gndvi computation failed for large values."
+
+def test_gndvi_type():
+    green_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+    computed_gndvi = compute_gndvi(nir_band, green_band)
+    assert computed_gndvi.dtype == np.float32, "gndvi output type is not float32."
+
+def test_savi_simple():
+    nir_band = np.array([3, 4])
+    red_band = np.array([1, 2])
+    L_factor = 0.5
+    expected_savi = (
+    (nir_band - red_band)
+    * (1 + L_factor)
+    / (nir_band + red_band + L_factor)
+    )
+    computed_savi = compute_savi(red_band, nir_band, L_factor = 0.5)
+    assert np.allclose(computed_savi, expected_savi), "savi computation failed for simple case."
+
+
+def test_savi_zero_division():
+    red_band = np.array([0, 0])
+    nir_band = np.array([0, 0])
+    expected_savi = np.array([0.0, 0.0])
+    computed_savi = compute_savi(red_band, nir_band)
+    assert np.allclose(computed_savi, expected_savi), "savi computation failed for zero division case."
+
+
+def test_savi_large_values():
+    red_band = np.array([1000, 2000])
+    nir_band = np.array([3000, 4000])
+    L_factor = 0.5
+    expected_savi = (
+    (nir_band - red_band)
+    * (1 + L_factor)
+    / (nir_band + red_band + L_factor)
+    )
+    computed_savi = compute_savi(red_band, nir_band, L_factor = 0.5)
+    assert np.allclose(computed_savi, expected_savi), "savi computation failed for large values."
+
+
+def test_savi_type():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+    computed_savi = compute_savi(red_band, nir_band, L_factor = 0.5)
+    assert computed_savi.dtype == np.float32, "savi output type is not float32."
+
+def test_savi_negative_L_factor():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+    with pytest.raises(ValueError, match="L_factor must be greater than or equal to 0."):
+        compute_savi(red_band, nir_band, L_factor = -1)
