@@ -8,7 +8,10 @@ The objective is to provide reproducible workflows to extract agronomic traits f
 
 ## Current Features:
 - [X] NDVI computation 
-- [X] NDRE computation 
+- [X] NDRE computation
+- [X] GNDVI computation 
+- [X] SAVI computation  
+- [X] Sentinel images resampling
 - [ ] Vegetation masking 
 - [ ] Statistical analysis 
 - [ ] Visualization
@@ -122,6 +125,14 @@ NDVI computation
 NDRE computation
 
 ![NDRE](docs/images/ndre.png)
+
+GNDVI computation
+
+![GNDVI](docs/images/gndvi.png)
+
+SAVI computation
+
+![SAVI](docs/images/savi.png)
 
 ↓
 
