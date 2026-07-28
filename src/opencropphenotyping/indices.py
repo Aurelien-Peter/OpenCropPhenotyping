@@ -81,8 +81,8 @@ def compute_ndre(nir_band: np.ndarray, red_edge_band: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    red_band : np.ndarray
-        Red band.
+    nir_band : np.ndarray
+        Near infrared band.
 
     red_edge_band : np.ndarray
         Red edge band.
@@ -93,3 +93,53 @@ def compute_ndre(nir_band: np.ndarray, red_edge_band: np.ndarray) -> np.ndarray:
         NDRE image.
     """
     return compute_normalized_difference_index(nir_band, red_edge_band)
+
+def compute_gndvi(nir_band: np.ndarray, green_band: np.ndarray) -> np.ndarray:
+    """
+    Compute the Green Normalized Difference Vegetation Index (GNDVI) from the given nir and green bands.
+
+    Parameters
+    ----------
+    nir_band : np.ndarray
+        Red band.
+
+    green_band : np.ndarray
+        Red edge band.
+
+    Returns
+    -------
+    np.ndarray
+        GNDVI image.
+    """
+    return compute_normalized_difference_index(nir_band, green_band)
+
+def compute_savi(red_band: np.ndarray, nir_band: np.ndarray, L_factor : float = 0.5) -> np.ndarray:
+    """
+    Compute the Soil Adjusted Vegetation Index (SAVI) from the given red and near-infrared (NIR) bands.
+    The L factor is typically set to 0.5 for moderate vegetation cover.
+
+    Parameters
+    ----------
+    red_band : np.ndarray
+        Red band.
+
+    nir_band : np.ndarray
+        Near infrared band.
+
+    Returns
+    -------
+    np.ndarray
+        SAVI image.
+    """
+    # Raise an error if L < 0
+    if L_factor < 0:
+        raise ValueError("L_factor must be greater than or equal to 0.")
+
+    prepared_red_band, prepared_nir_band = _prepare_bands(red_band, nir_band)
+
+    # Compute SAVI index
+    denominator = prepared_nir_band + prepared_red_band + L_factor
+    numerator = (prepared_nir_band - prepared_red_band) * (1 + L_factor)
+    savi = np.divide(numerator, denominator, out=np.zeros_like(denominator), where=denominator != 0)
+
+    return savi.astype(np.float32)
