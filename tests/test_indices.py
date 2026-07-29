@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from opencropphenotyping.indices import _prepare_bands, compute_ndre, compute_ndvi, compute_gndvi, compute_savi, compute_normalized_difference_index
+from opencropphenotyping.indices import _prepare_bands, compute_ndre, compute_ndvi, compute_gndvi, compute_savi, compute_normalized_difference_index, compute_indexes
 
 
 def test__prepare_bands_shape_error():
@@ -150,3 +150,89 @@ def test_savi_negative_L_factor():
     nir_band = np.array([3, 4], dtype=np.int32)
     with pytest.raises(ValueError, match="L_factor must be greater than or equal to 0."):
         compute_savi(red_band, nir_band, L_factor = -1)
+
+def test_compute_indexes_all_indexes():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+    green_band = np.array([5, 6], dtype=np.int32)
+    red_edge_band = np.array([7, 8], dtype=np.int32)
+
+    indices = compute_indexes(
+        red_band=red_band,
+        nir_band=nir_band,
+        green_band=green_band,
+        red_edge_band=red_edge_band
+    )
+
+    assert "ndvi" in indices
+    assert "ndre" in indices
+    assert "gndvi" in indices
+    assert "savi" in indices
+    assert len(indices) == 4
+
+def test_compute_indexes_red_nir():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+
+    indices = compute_indexes(
+        red_band=red_band,
+        nir_band=nir_band,
+    )
+
+    assert "ndvi" in indices
+    assert "savi" in indices
+    assert "ndre" not in indices
+    assert "gndvi" not in indices
+    assert len(indices) == 2
+
+    assert np.allclose(indices["ndvi"], compute_ndvi(red_band, nir_band))
+    assert np.allclose(indices["savi"], compute_savi(red_band, nir_band))
+
+def test_compute_indexes_green_nir():
+    green_band = np.array([5, 6], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+
+    indices = compute_indexes(
+        nir_band=nir_band,
+        green_band=green_band, 
+    )
+
+    assert "ndvi" not in indices
+    assert "ndre" not in indices
+    assert "gndvi" in indices
+    assert "savi" not in indices
+    assert len(indices) == 1
+
+    assert np.allclose(indices["gndvi"], compute_gndvi(nir_band, green_band))
+
+
+def test_compute_indexes_rededge_nir():
+    red_edge_band = np.array([7, 8], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+
+    indices = compute_indexes(
+        nir_band=nir_band,
+        red_edge_band=red_edge_band
+    )
+
+    assert "ndvi" not in indices
+    assert "ndre" in indices
+    assert "gndvi" not in indices
+    assert "savi" not in indices
+    assert len(indices) == 1
+
+    assert np.allclose(indices["ndre"], compute_ndre(nir_band, red_edge_band))
+
+
+def test_compute_indexes_no_nir():
+    red_band = np.array([1, 2], dtype=np.int32)
+    green_band = np.array([5, 6], dtype=np.int32)
+    red_edge_band = np.array([7, 8], dtype=np.int32)
+
+    indices = compute_indexes(
+        red_band=red_band,
+        green_band=green_band, 
+        red_edge_band=red_edge_band
+    )
+
+    assert indices == {}
