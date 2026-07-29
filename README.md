@@ -45,6 +45,7 @@ Current case studies:
 - NDRE
 - SAVI
 - GNDVI
+- Compiling indexes computations
 - Statistics
 - Batch processing
 - Command-line interface (CLI)
