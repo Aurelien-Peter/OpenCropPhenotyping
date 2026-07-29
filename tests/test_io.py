@@ -5,7 +5,7 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from opencropphenotyping.io import find_band, find_granule, read_band, write_png, write_raster, resample_raster
+from opencropphenotyping.io import find_band, find_granule, read_band, resample_raster, write_png, write_raster
 
 
 ## Create paths
@@ -105,7 +105,7 @@ def test_read_band_wrong_directory():
         read_band(Path("C:/wrong/path/B04_10m.jp2"))  # Assuming this directory does not exist
 
 
-def test_find_granulule_wrong_directory():
+def test_find_granule_wrong_directory():
     # Test find_granule function with a wrong directory
     with pytest.raises(FileNotFoundError):
         find_granule(Path("C:/wrong/path"))  # Assuming this directory does not exist

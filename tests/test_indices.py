@@ -1,7 +1,15 @@
 import numpy as np
 import pytest
 
-from opencropphenotyping.indices import _prepare_bands, compute_ndre, compute_ndvi, compute_gndvi, compute_savi, compute_normalized_difference_index, compute_indexes
+from opencropphenotyping.indices import (
+    _prepare_bands,
+    compute_gndvi,
+    compute_indexes,
+    compute_ndre,
+    compute_ndvi,
+    compute_normalized_difference_index,
+    compute_savi,
+)
 
 
 def test__prepare_bands_shape_error():

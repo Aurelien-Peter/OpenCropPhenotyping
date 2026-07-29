@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from PIL.Image import Resampling
 import numpy as np
 import rasterio
+from PIL.Image import Resampling
 from rasterio.enums import Resampling
 from rasterio.warp import reproject
 
