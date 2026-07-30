@@ -143,3 +143,22 @@ def compute_savi(red_band: np.ndarray, nir_band: np.ndarray, L_factor : float = 
     savi = np.divide(numerator, denominator, out=np.zeros_like(denominator), where=denominator != 0)
 
     return savi.astype(np.float32)
+
+def compute_indexes(
+        red_band: np.ndarray | None = None,
+        nir_band: np.ndarray | None = None,
+        green_band: np.ndarray | None = None,
+        red_edge_band: np.ndarray | None = None,
+    ) -> dict[str, np.ndarray]:
+    results = {}
+    if(nir_band is not None):
+        if(red_band is not None):
+            results["ndvi"] = compute_ndvi(red_band, nir_band)
+            results["savi"] = compute_savi(red_band, nir_band)
+        if(red_edge_band is not None):
+            results["ndre"] = compute_ndre(nir_band, red_edge_band)
+        if(green_band is not None):
+            results["gndvi"] = compute_gndvi(nir_band, green_band)
+    return results
+    
+    
