@@ -11,14 +11,14 @@ authors = [
     {name = "Aurélien Peter"}
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 dependencies = [
     "numpy",
     "rasterio",
     "matplotlib",
+    "pandas",
 ]
-
 
 [project.optional-dependencies]
 dev = [
