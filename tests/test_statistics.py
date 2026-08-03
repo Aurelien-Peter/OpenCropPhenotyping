@@ -1,5 +1,7 @@
 import numpy as np
+
 from opencropphenotyping.statistics import compute_statistics
+
 
 def test_compute_statistics():
     image = np.array([[1, 2], [3, 4]], dtype=np.float32)

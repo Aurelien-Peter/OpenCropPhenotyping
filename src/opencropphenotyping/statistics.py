@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def compute_statistics(image: np.ndarray) -> dict[str, float]:
     results = {}
     results["min"]=np.nanmin(image)
