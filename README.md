@@ -112,9 +112,11 @@ No additional data download is required to run the examples
 ## Example workflow
 
 Sentinel-2 Red band (B04)
+
 ![B04](docs/images/red.png)
 
 Sentinel-2 Near Infra Red band (B08)
+
 ![B08](docs/images/nir.png)
 
 ↓
@@ -142,6 +144,12 @@ Trait extraction
 ↓
 
 Statistics
+
+NDVI statistics
+
+![NDVI distribution](docs/images/ndvi_hist_0.png)
+
+![NDVI boxplot](docs/images/ndvi_hist_1.png)
 
 ↓
 
