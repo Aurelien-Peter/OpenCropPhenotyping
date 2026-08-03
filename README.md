@@ -139,17 +139,17 @@ The following workflow illustrates the processing of Sentinel-2 multispectral im
 
 The selected Sentinel-2 bands are combined to compute several vegetation indices:
 
-B04 Red ─────────────┬──→ NDVI
-                     └──→ SAVI
+B04 Red ───────┬──→ NDVI  
+&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&nbsp;└──→ SAVI  
                          
-B08 NIR ─────────────┬──→ NDVI
-                     ├──→ SAVI
-                     ├──→ GNDVI
-                     └──→ NDRE
+B08 NIR ───────┬──→ NDVI  
+&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&nbsp;├──→ SAVI  
+&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&nbsp;├──→ GNDVI  
+&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&nbsp;└──→ NDRE  
 
-B03 Green ──────────────→ GNDVI
+B03 Green ────────→ GNDVI
 
-B05 Red Edge ───────────→ NDRE     
+B05 Red Edge ──────→ NDRE     
 
 #### NDVI — Normalized Difference Vegetation Index
 
