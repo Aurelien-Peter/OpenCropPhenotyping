@@ -12,9 +12,10 @@ The objective is to provide reproducible workflows to extract agronomic traits f
 - [X] GNDVI computation 
 - [X] SAVI computation  
 - [X] Sentinel images resampling
-- [ ] Vegetation masking 
-- [ ] Statistical analysis 
-- [ ] Visualization
+- [X] Vegetation masking 
+- [X] Crop cover estimation
+- [X] Statistical analysis 
+- [X] Visualization
 
 ## Case studies
 
@@ -42,11 +43,13 @@ Current case studies:
 ### Version 0.2
 #### Vegetation indices
 
-- NDRE
-- SAVI
-- GNDVI
-- Compiling indexes computations
+- NDRE computation
+- SAVI computation
+- GNDVI computation
+- Generic vegetation index computation
 - Statistics
+- Vegetation masking
+- Trait Extraction (Crop cover)
 - Batch processing
 - Command-line interface (CLI)
 
@@ -57,7 +60,6 @@ Current case studies:
 
 - UAV imagery
 - Orthomosaic support
-- Canopy cover
 - Vegetation segmentation
 - RGB vegetation indices
 - Image tiling
@@ -111,49 +113,89 @@ No additional data download is required to run the examples
 
 ## Example workflow
 
-Sentinel-2 Red band (B04)
+The following workflow illustrates the processing of Sentinel-2 multispectral imagery, from the input bands to vegetation indices, statistical analysis and crop trait extraction.
+
+### Sentinel-2 input bands
+
+#### Sentinel-2 Red band (B04)
 
 ![B04](docs/images/red.png)
 
-Sentinel-2 Near Infra Red band (B08)
+#### Sentinel-2 Near Infra Red band (B08)
 
 ![B08](docs/images/nir.png)
 
+#### Green band (B03)
+
+![B03](docs/images/green.png)
+
+#### Red Edge band (B05)
+
+![B05](docs/images/red_edge.png)
+
 ↓
 
-NDVI computation
+### Vegetation indices
+
+The selected Sentinel-2 bands are combined to compute several vegetation indices:
+
+B04 Red ─────────────┬──→ NDVI
+                     └──→ SAVI
+                         
+B08 NIR ─────────────┬──→ NDVI
+                     ├──→ SAVI
+                     ├──→ GNDVI
+                     └──→ NDRE
+
+B03 Green ──────────────→ GNDVI
+
+B05 Red Edge ───────────→ NDRE     
+
+#### NDVI — Normalized Difference Vegetation Index
 
 ![NDVI](docs/images/ndvi.png)
 
-NDRE computation
+#### NDRE — Normalized Difference Red Edge Index
 
 ![NDRE](docs/images/ndre.png)
 
-GNDVI computation
+#### GNDVI — Green Normalized Difference Vegetation Index
 
 ![GNDVI](docs/images/gndvi.png)
 
-SAVI computation
+#### SAVI — Soil-Adjusted Vegetation Index
 
 ![SAVI](docs/images/savi.png)
 
 ↓
 
-Trait extraction
+### Statistics and visualization
 
-↓
+Statistics are computed for each vegetation index to characterize the distribution of pixel values.
 
-Statistics
-
-NDVI statistics
+#### NDVI distribution
 
 ![NDVI distribution](docs/images/ndvi_hist_0.png)
+
+#### NDVI boxplot
 
 ![NDVI boxplot](docs/images/ndvi_hist_1.png)
 
 ↓
 
-Export
+### Trait extraction
+
+The NDVI image is used to create a vegetation mask and estimate crop cover.
+
+#### Vegetation mask
+
+![Vegetation mask](docs/images/vegetation_mask_custom.png)
+
+Crop cover: **39.24%**
+
+↓
+
+### Export
 
 ## Contributing 
 Contributions are welcome. If you have ideas for improvements, bug fixes or new features, feel free to open an issue or submit a pull request.
