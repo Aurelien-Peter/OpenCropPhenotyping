@@ -5,7 +5,7 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from opencropphenotyping.io import find_band, find_granule, read_band, resample_raster, write_png, write_raster
+from opencropphenotyping.io import select_bands, build_band_catalog, find_band, find_granule, read_band, resample_raster, write_png, write_raster
 
 
 ## Create paths
@@ -32,6 +32,173 @@ def raster_profile():
     }
 
 ## Perform tests
+def test_build_band_catalog(monkeypatch, tmp_path):
+
+    def mock_find_band(safe_path, band, resolution):
+        return safe_path / f"{band}_{resolution}m.jp2"
+
+    monkeypatch.setattr(
+        "opencropphenotyping.io.find_band",
+        mock_find_band
+    )
+
+    catalog = build_band_catalog(
+        input_dir=tmp_path,
+        bands=["B03", "B04"]
+    )
+
+    expected = {
+        "B03": {
+            10: tmp_path / "B03_10m.jp2",
+            20: tmp_path / "B03_20m.jp2",
+            60: tmp_path / "B03_60m.jp2",
+        },
+        "B04": {
+            10: tmp_path / "B04_10m.jp2",
+            20: tmp_path / "B04_20m.jp2",
+            60: tmp_path / "B04_60m.jp2",
+        },
+    }
+
+    assert catalog == expected
+
+def test_build_band_catalog_missing_band(monkeypatch, tmp_path):
+    def mock_find_band(safe_path, band, resolution):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(
+        "opencropphenotyping.io.find_band",
+        mock_find_band
+    )
+
+    catalog = build_band_catalog(
+        input_dir=tmp_path,
+        bands=["B05"]
+    )
+
+    assert catalog == {"B05": {}}
+
+def test_build_band_catalog_partial_resolutions(monkeypatch, tmp_path):
+
+    def mock_find_band(safe_path, band, resolution):
+        if band == "B03" and resolution in [10, 20]:
+            return safe_path / f"{band}_{resolution}m.jp2"
+
+        raise FileNotFoundError
+
+    monkeypatch.setattr(
+        "opencropphenotyping.io.find_band",
+        mock_find_band
+    )
+
+    catalog = build_band_catalog(
+        input_dir=tmp_path,
+        bands=["B03"]
+    )
+
+    expected = {
+        "B03": {
+            10: tmp_path / "B03_10m.jp2",
+            20: tmp_path / "B03_20m.jp2",
+        }
+    }
+
+    assert catalog == expected
+
+def test_select_bands_existing_resolution(tmp_path):
+
+    catalog = {
+        "B03": {
+            10: tmp_path / "B03_10m.jp2",
+            20: tmp_path / "B03_20m.jp2",
+            60: tmp_path / "B03_60m.jp2",
+        },
+        "B04": {
+            10: tmp_path / "B04_10m.jp2",
+            20: tmp_path / "B04_20m.jp2",
+            60: tmp_path / "B04_60m.jp2",
+        },
+    }
+
+    selected_bands = select_bands(catalog, resolution=10)
+
+    expected = {
+        "B03": tmp_path / "B03_10m.jp2",
+        "B04": tmp_path / "B04_10m.jp2",
+    }
+
+    assert selected_bands == expected
+
+def test_select_bands_resample(monkeypatch, tmp_path):
+
+    catalog = {
+        "B05": {
+            10: tmp_path / "B05_10m.jp2",
+            60: tmp_path / "B05_60m.jp2",
+        }
+    }
+
+    # Mock read_band
+    def mock_read_band(path):
+        assert path == tmp_path / "B05_10m.jp2"
+        return "image", "profile"
+
+    monkeypatch.setattr(
+        "opencropphenotyping.io.read_band",
+        mock_read_band
+    )
+
+    # Mock resample_raster
+    def mock_resample_raster(image, profile, target_resolution):
+        assert image == "image"
+        assert profile == "profile"
+        assert target_resolution == 20
+
+        return "resampled_image", "resampled_profile"
+
+    monkeypatch.setattr(
+        "opencropphenotyping.io.resample_raster",
+        mock_resample_raster
+    )
+
+    # Mock write_raster
+    def mock_write_raster(image, profile, output_path):
+        assert image == "resampled_image"
+        assert profile == "resampled_profile"
+        output_path.touch()
+
+    monkeypatch.setattr(
+        "opencropphenotyping.io.write_raster",
+        mock_write_raster
+    )
+
+    selected_bands = select_bands(
+        catalog,
+        resolution=20,
+        output_dir=tmp_path
+    )
+
+    expected_path = (
+        tmp_path /
+        "Resampled_B05_from_R10m_to_R20m.tif"
+    )
+
+    assert selected_bands == {
+        "B05": expected_path
+    }
+
+def test_select_bands_empty_band():
+
+    catalog = {
+        "B06": {}
+    }
+
+    with pytest.raises(
+        FileNotFoundError,
+        match="No available resolution found for band B06"
+    ):
+        select_bands(catalog, resolution=10)
+
 def test_find_band_success(safe_dir):
     # Test find_band function
     band_path = find_band(safe_dir, "B04", resolution = 10)
