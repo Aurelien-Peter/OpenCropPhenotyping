@@ -244,3 +244,62 @@ def test_compute_indexes_no_nir():
     )
 
     assert indices == {}
+
+def test_compute_indexes_selected_indices():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+    green_band = np.array([5, 6], dtype=np.int32)
+    red_edge_band = np.array([7, 8], dtype=np.int32)
+
+    indices = compute_indexes(
+        red_band=red_band,
+        nir_band=nir_band,
+        green_band=green_band,
+        red_edge_band=red_edge_band,
+        indices=["ndvi", "gndvi"]
+    )
+
+    assert "ndvi" in indices
+    assert "gndvi" in indices
+    assert "ndre" not in indices
+    assert "savi" not in indices
+    assert len(indices) == 2
+
+    assert np.allclose(indices["ndvi"], compute_ndvi(red_band, nir_band))
+    assert np.allclose(indices["gndvi"], compute_gndvi(nir_band, green_band))
+
+def test_compute_indexes_empty_selected_indices():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+    green_band = np.array([5, 6], dtype=np.int32)
+    red_edge_band = np.array([7, 8], dtype=np.int32)
+
+    indices = compute_indexes(
+        red_band=red_band,
+        nir_band=nir_band,
+        green_band=green_band,
+        red_edge_band=red_edge_band,
+        indices=[]
+    )
+
+    assert indices == {}
+
+def test_compute_indexes_none_indices():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+    green_band = np.array([5, 6], dtype=np.int32)
+    red_edge_band = np.array([7, 8], dtype=np.int32)
+
+    indices = compute_indexes(
+        red_band=red_band,
+        nir_band=nir_band,
+        green_band=green_band,
+        red_edge_band=red_edge_band,
+        indices=None
+    )
+
+    assert "ndvi" in indices
+    assert "gndvi" in indices
+    assert "ndre" in indices
+    assert "savi" in indices
+    assert len(indices) == 4

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import statistics
+import warnings
 
 import numpy as np
 from pathlib import Path
@@ -45,13 +45,41 @@ def process_sentinel2(
         band_profiles[band_name] = profile
 
     # 4. Compute requested vegetation indices
-    computed_indices = compute_indexes(
-        red_band=band_images.get("B04"),
-        nir_band=band_images.get("B08"),
-        green_band=band_images.get("B03"),
-        red_edge_band=band_images.get("B05"),
-    )
+    if indices is None:
+        indices = ["ndvi", "savi", "ndre", "gndvi"]
 
+    red_band = band_images.get("B04")
+    nir_band = band_images.get("B08")
+    green_band = band_images.get("B03")
+    red_edge_band = band_images.get("B05")
+
+    required_bands = set()
+
+    if "ndvi" in indices or "savi" in indices:
+        required_bands.update(["B04", "B08"])
+
+    if "ndre" in indices:
+        required_bands.update(["B05", "B08"])
+
+    if "gndvi" in indices:
+        required_bands.update(["B03", "B08"])
+
+    for band in required_bands:
+        if band not in band_images:
+            warnings.warn(
+                f"{band} is not available. "
+                "Some requested vegetation indices may not be computed.",
+                UserWarning,
+            )
+
+    computed_indices = compute_indexes(
+        red_band=red_band,
+        nir_band=nir_band,
+        green_band=green_band,
+        red_edge_band=red_edge_band,
+        indices=indices
+    )
+    
     # 5. Compute statistics
     statistics = {}
 
