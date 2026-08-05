@@ -48,7 +48,7 @@ def test_compute_crop_cover():
                                  [np.nan, 1, 1]])
 
     # Expected crop cover percentage
-    expected_crop_cover = (5 / 8) * 100  # 5 vegetation pixels out of 8 valid pixels
+    expected_crop_cover = (5 / 8) # 5 vegetation pixels out of 8 valid pixels
 
     # Call the function to compute crop cover
     crop_cover = compute_crop_cover(vegetation_mask)
@@ -73,7 +73,7 @@ def test_compute_crop_cover_full_vegetation():
 
     crop_cover = compute_crop_cover(mask)
 
-    assert crop_cover == 100.0
+    assert crop_cover == 1.0
 
 def test_compute_crop_cover_all_nan():
     mask = np.full((2, 2), np.nan, dtype=np.float32)
