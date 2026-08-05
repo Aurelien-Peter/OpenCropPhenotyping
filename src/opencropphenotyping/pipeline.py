@@ -25,26 +25,48 @@ def process_sentinel2(
     ndvi_threshold: float = 0.3,
     resolution: int = 10,
 ) -> ProcessingResult:
+    """ 
+    Process Sentinel-2 imagery and compute vegetation-related outputs. 
+    The pipeline discovers the required Sentinel-2 bands, selects or 
+    resamples them to the requested resolution, computes the requested 
+    vegetation indices, and calculates statistics for each computed index. 
 
-    """
-    Process Sentinel-2 imagery to compute vegetation indices, statistics, and crop cover.
-    
-    Parameters
-    ----------
-    input_dir: Path 
-        Path to the directory containing Sentinel-2 imagery.
-    indices: list[str] | None
-        List of vegetation indices to compute.
-    ndvi_threshold: float
-        Threshold for creating the vegetation mask.
-    resolution: int
-        Target resolution for band resampling.
+    If NDVI is successfully computed, a vegetation mask and crop cover 
+    percentage are also calculated. If NDVI cannot be computed because 
+    required bands are unavailable, the pipeline continues without 
+    creating the vegetation mask or crop cover. 
 
-    Returns
-    ----------
-    ProcessingResult
-        A dataclass containing computed indices, statistics, vegetation mask, and crop cover.
-    
+    Parameters 
+    ---------- 
+    input_dir : Path 
+        Directory containing the input Sentinel-2 data. 
+    indices : list[str] | None, optional 
+        Vegetation indices to compute. Available indices are ``"ndvi"``, 
+        ``"savi"``, ``"ndre"``, and ``"gndvi"``. 
+        If ``None``, all available indices are requested. 
+        Indices whose required bands are unavailable are not computed. 
+    ndvi_threshold : float, optional 
+        NDVI threshold used to create the vegetation mask. 
+        Default is 0.3. 
+    resolution : int, optional 
+        Target spatial resolution in metres for the input bands. 
+        Available Sentinel-2 resolutions are 10, 20, and 60 metres. 
+        Bands are resampled when the requested resolution is not 
+        directly available. 
+        Default is 10. 
+        
+    Returns 
+    ------- 
+    ProcessingResult 
+        Processing results containing: 
+        
+        - ``indices``: computed vegetation indices as NumPy arrays. 
+        - ``profile``: raster profile used for exporting the results. 
+        - ``statistics``: statistics computed for each vegetation index. 
+        - ``vegetation_mask``: binary vegetation mask based on NDVI, 
+            or ``None`` if NDVI could not be computed. 
+        - ``crop_cover``: proportion of pixels classified as vegetation, 
+            or ``None`` if NDVI could not be computed. 
     """
 
     # 1. Find available bands
@@ -142,13 +164,31 @@ def export_results(
     """
     Export processing results to the specified output directory.
 
+    The exported results include the computed vegetation indices,
+    statistics, and, when available, the vegetation mask and crop cover.
+
+    The following directory structure is created::
+
+        output_dir/
+        ├── indices/
+        │   ├── ndvi.tif
+        │   ├── savi.tif
+        │   ├── ndre.tif
+        │   └── gndvi.tif
+        ├── vegetation_mask.tif
+        ├── statistics.csv
+        └── crop_cover.txt
+
+    The vegetation mask and crop cover files are only created when the
+    corresponding values are available in ``result``.
+
     Parameters
     ----------
     result : ProcessingResult
-        Processing results containing vegetation indices,
+        Processing results containing vegetation indices, raster profile,
         statistics, vegetation mask, and crop cover.
     output_dir : Path
-        Directory where the results will be saved.
+        Directory where the processing results will be exported.
 
     Returns
     -------

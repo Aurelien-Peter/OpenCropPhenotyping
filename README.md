@@ -7,15 +7,20 @@ OpenCropPhenotyping is an open-source project dedicated to reproducible high-thr
 The objective is to provide reproducible workflows to extract agronomic traits from UAV and Sentinel-2 imagery, from raw image preprocessing to trait extraction, statistical analysis and visualization. The first developments focus on major field crops such as maize, with the possibility of extending the framework to other crops in future releases.
 
 ## Current Features:
+- [X] Sentinel-2 imagery reading
+- [X] Sentinel-2 band selection and resampling
 - [X] NDVI computation 
 - [X] NDRE computation
 - [X] GNDVI computation 
 - [X] SAVI computation  
-- [X] Sentinel images resampling
+- [X] Generic vegetation index computation
 - [X] Vegetation masking 
 - [X] Crop cover estimation
 - [X] Statistical analysis 
+- [X] Sentinel-2 processing pipeline
+- [X] Processing results export
 - [X] Visualization
+- [X] Unit Tests
 
 ## Case studies
 
@@ -41,7 +46,7 @@ Current case studies:
 ---
 
 ### Version 0.2
-#### Vegetation indices
+#### Vegetation indices and processing pipeline
 
 - NDRE computation
 - SAVI computation
@@ -50,6 +55,8 @@ Current case studies:
 - Statistics
 - Vegetation masking
 - Trait Extraction (Crop cover)
+- Sentinel-2 processing pipeline
+- Processing results export
 - Batch processing
 - Command-line interface (CLI)
 
@@ -91,6 +98,7 @@ Current case studies:
 Complete crop phenotyping workflow
 
 ## For which users?
+
 This project is intended for researchers, agronomists, engineers working in remote sensing, as well as for UAV practitioners and interested students. The project is also suitable for anyone wishing to learn how to process drone or Sentinel-2 imagery using Python.
 
 ## Installation
@@ -197,15 +205,92 @@ Crop cover: **39.24%**
 
 ### Export
 
+The processing results can be exported to a dedicated output directory.
+
+The exported files include:
+
+- GeoTIFF files for the computed vegetation indices;
+- a GeoTIFF file containing the vegetation mask;
+- a CSV file containing statistics for each vegetation index;
+- a text file containing the estimated crop cover.
+
+The output directory is organized as follows:
+
+output_dir/   
+├── indices/   
+│ &ensp;&ensp;&ensp;├── ndvi.tif   
+│ &ensp;&ensp;&ensp;├── savi.tif  
+│ &ensp;&ensp;&ensp;├── ndre.tif  
+│ &ensp;&ensp;&ensp;└── gndvi.tif  
+├── vegetation_mask.tif  
+├── statistics.csv  
+└── crop_cover.txt 
+
+### Processing pipeline
+
+The Sentinel-2 processing pipeline provides a high-level interface to process Sentinel-2 imagery and extract vegetation-related traits.
+
+from pathlib import Path
+
+from opencropphenotyping.pipeline import (
+    process_sentinel2,
+    export_results,
+)
+
+input_dir = Path("data/raw")
+output_dir = Path("data/processed")
+
+result = process_sentinel2(
+    input_dir=input_dir,
+    indices=["ndvi", "ndre"],
+    resolution=10,
+    ndvi_threshold=0.3,
+)
+
+export_results(
+    result,
+    output_dir=output_dir,
+)
+
+The indices parameter can be used to select which vegetation indices are computed:
+
+indices=["ndvi"]
+
+or:
+
+indices=["ndvi", "savi", "ndre", "gndvi"]
+
+If indices=None, all available vegetation indices are requested.
+
+If the bands required for a requested index are unavailable, that index is not computed and the pipeline continues processing the other available indices.
+
+When NDVI is available, the pipeline also creates a vegetation mask and estimates crop cover.
+
+### Processing results
+
+The process_sentinel2() function returns a ProcessingResult object containing:
+
+- the computed vegetation indices;
+- the raster profile;
+- statistics for each computed index;
+- the vegetation mask, when NDVI is available;
+- the crop cover estimate, when NDVI is available.
+
+The results can then be exported using export_results().
+
 ## Contributing 
+
 Contributions are welcome. If you have ideas for improvements, bug fixes or new features, feel free to open an issue or submit a pull request.
 
 ## Documentation
+
 Documentation will be progressively added as the project evolves.
 
 ## Version
+
 This project follows Semantic Versioning (SemVer). 
 See the Releases page for available versions and change logs.
 
 ## LICENSE
+
 See the LICENSE file.
