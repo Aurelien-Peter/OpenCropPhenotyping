@@ -255,6 +255,7 @@ env/
 
 data/raw/*
 data/processed/*
+results/*
 *.zip
 
 # =========================

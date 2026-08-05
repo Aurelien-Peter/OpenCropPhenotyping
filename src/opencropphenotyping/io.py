@@ -7,6 +7,116 @@ from rasterio.enums import Resampling
 from rasterio.warp import reproject
 
 
+def build_band_catalog(
+        input_dir: Path,
+        bands: list[str],
+        ) -> dict[str, dict[int, Path]]:
+    """
+    Build a catalog of available Sentinel-2 bands at different resolutions.
+
+    Parameters
+    ----------
+    input_dir : Path
+        Path to a Sentinel-2 directory.
+    bands : list[str]
+        List of band identifiers to include in the catalog.
+
+    Returns
+    -------
+    dict[str, dict[int, Path]]
+        Dictionary mapping each band identifier to its available
+        resolutions and corresponding file paths.
+    """
+    catalog = {}
+    for band in bands:
+        catalog[band] = {}
+        for resolution in [10, 20, 60]:
+            try:
+                band_path = find_band(
+                    input_dir, 
+                    band, 
+                    resolution=resolution)
+                catalog[band][resolution] = band_path
+            except FileNotFoundError:
+                continue  # Skip if the band is not found
+    return catalog
+
+def select_bands(
+        catalog: dict[str, dict[int, Path]],
+        resolution: int = 10,
+        output_dir: Path | None = None
+        ) -> dict[str, Path]:
+    """
+    Select Sentinel-2 bands at the requested spatial resolution.
+
+    Bands already available at the target resolution are used directly.
+    Missing resolutions are obtained by resampling the closest available
+    resolution.
+
+    Parameters
+    ----------
+    catalog : dict[str, dict[int, Path]]
+        Catalog of available bands and their resolutions.
+    resolution : int, optional
+        Target spatial resolution in meters. Default is 10.
+    output_dir : Path, optional
+        Directory where resampled bands are written.
+
+    Returns
+    -------
+    dict[str, Path]
+        Selected bands at the requested resolution.
+    """
+    selected_bands = {}
+
+    for band_name, resolutions in catalog.items():
+
+        if not resolutions:
+            raise FileNotFoundError(
+                f"No available resolution found for band {band_name}."
+            )
+
+        # Band already available at target resolution
+        if resolution in resolutions:
+            selected_bands[band_name] = resolutions[resolution]
+            continue
+
+        # Find the closest available resolution
+        closest_resolution = min(
+            resolutions,
+            key=lambda r: abs(r - resolution)
+        )
+
+        image, profile = read_band(resolutions[closest_resolution])
+
+        resampled_image, resampled_profile = resample_raster(
+            image,
+            profile,
+            target_resolution=resolution
+        )
+
+        if output_dir is None:
+            raise ValueError(
+                f"Output directory required to resample band {band_name}."
+            )
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        resampled_band_path = (
+            output_dir /
+            f"Resampled_{band_name}_from_R{closest_resolution}m_to_R{resolution}m.tif"
+        )
+
+        write_raster(
+            resampled_image,
+            resampled_profile,
+            resampled_band_path
+        )
+
+        selected_bands[band_name] = resampled_band_path
+
+    return selected_bands
+    
 def read_band(filepath: Path) -> tuple[np.ndarray, dict]:
     """
     Read a single band from a raster file.

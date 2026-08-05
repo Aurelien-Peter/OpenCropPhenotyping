@@ -56,5 +56,5 @@ def compute_crop_cover(vegetation_mask: np.ndarray) -> float:
         )
 
     vegetation_pixels = np.nansum(vegetation_mask)
-    crop_cover = (vegetation_pixels / total__valid_pixels) * 100
+    crop_cover = (vegetation_pixels / total__valid_pixels)
     return crop_cover
