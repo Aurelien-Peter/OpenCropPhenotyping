@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from opencropphenotyping.pipeline import process_sentinel2
+from opencropphenotyping.pipeline import ProcessingResult, process_sentinel2, export_results
 
 
 def test_process_sentinel2_with_ndvi(monkeypatch, tmp_path):
@@ -410,3 +410,149 @@ def test_process_sentinel2_missing_required_band(monkeypatch, tmp_path):
 
     # NDVI cannot be computed
     assert result.indices == {}
+
+def test_export_results(monkeypatch, tmp_path):
+
+    profile = {
+        "driver": "GTiff",
+        "dtype": "float32",
+    }
+
+    ndvi = np.ones((10, 10))
+    savi = np.ones((10, 10)) * 2
+    vegetation_mask = np.ones((10, 10), dtype=bool)
+
+    result = ProcessingResult(
+        indices={
+            "ndvi": ndvi,
+            "savi": savi,
+        },
+        profile=profile,
+        statistics={
+            "ndvi": {
+                "mean": 1.0,
+                "std": 0.0,
+            },
+            "savi": {
+                "mean": 2.0,
+                "std": 0.0,
+            },
+        },
+        vegetation_mask=vegetation_mask,
+        crop_cover=0.75,
+    )
+
+    written_rasters = {}
+
+    def mock_write_raster(image, profile, output_path):
+        written_rasters[output_path] = {
+            "image": image,
+            "profile": profile,
+        }
+
+    monkeypatch.setattr(
+        "opencropphenotyping.pipeline.write_raster",
+        mock_write_raster,
+    )
+
+    export_results(
+        result,
+        tmp_path,
+    )
+
+    # Check indices
+    assert tmp_path / "indices" / "ndvi.tif" in written_rasters
+    assert tmp_path / "indices" / "savi.tif" in written_rasters
+
+    assert written_rasters[
+        tmp_path / "indices" / "ndvi.tif"
+    ]["image"] is ndvi
+
+    assert written_rasters[
+        tmp_path / "indices" / "ndvi.tif"
+    ]["profile"] == profile
+
+    # Check vegetation mask
+    mask_path = tmp_path / "vegetation_mask.tif"
+
+    assert mask_path in written_rasters
+    assert written_rasters[mask_path]["image"] is vegetation_mask
+
+    # Check statistics
+    statistics_path = tmp_path / "statistics.csv"
+
+    assert statistics_path.exists()
+
+    content = statistics_path.read_text()
+
+    assert "index,mean,std" in content
+    assert "ndvi,1.0,0.0" in content
+    assert "savi,2.0,0.0" in content
+
+    # Check crop cover
+    crop_cover_path = tmp_path / "crop_cover.txt"
+
+    assert crop_cover_path.exists()
+
+    content = crop_cover_path.read_text()
+
+    assert content == "Crop Cover: 0.75\n"
+
+def test_export_results_no_vegetation_mask_crop_cover(monkeypatch, tmp_path):
+
+    profile = {
+        "driver": "GTiff",
+        "dtype": "float32",
+    }
+
+    ndvi = np.ones((10, 10))
+    savi = np.ones((10, 10)) * 2
+    vegetation_mask = None
+
+    result = ProcessingResult(
+        indices={
+            "ndvi": ndvi,
+            "savi": savi,
+        },
+        profile=profile,
+        statistics={
+            "ndvi": {
+                "mean": 1.0,
+                "std": 0.0,
+            },
+            "savi": {
+                "mean": 2.0,
+                "std": 0.0,
+            },
+        },
+        vegetation_mask=vegetation_mask,
+        crop_cover=None,
+    )
+
+    written_rasters = {}
+
+    def mock_write_raster(image, profile, output_path):
+        written_rasters[output_path] = {
+            "image": image,
+            "profile": profile,
+        }
+
+    monkeypatch.setattr(
+        "opencropphenotyping.pipeline.write_raster",
+        mock_write_raster,
+    )
+
+    export_results(
+        result,
+        tmp_path,
+    )
+
+    # Check vegetation mask
+    mask_path = tmp_path / "vegetation_mask.tif"
+
+    assert mask_path not in written_rasters
+
+    # Check crop cover
+    crop_cover_path = tmp_path / "crop_cover.txt"
+
+    assert not crop_cover_path.exists()
