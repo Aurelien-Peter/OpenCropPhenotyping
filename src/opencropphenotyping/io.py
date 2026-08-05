@@ -6,6 +6,7 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.warp import reproject
 
+
 def build_band_catalog(
         input_dir: Path,
         bands: list[str],

@@ -5,7 +5,16 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from opencropphenotyping.io import select_bands, build_band_catalog, find_band, find_granule, read_band, resample_raster, write_png, write_raster
+from opencropphenotyping.io import (
+    build_band_catalog,
+    find_band,
+    find_granule,
+    read_band,
+    resample_raster,
+    select_bands,
+    write_png,
+    write_raster,
+)
 
 
 ## Create paths

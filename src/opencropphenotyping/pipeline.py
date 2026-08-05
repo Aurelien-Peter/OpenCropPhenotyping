@@ -1,14 +1,15 @@
-from dataclasses import dataclass
 import warnings
+from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from opencropphenotyping import statistics
-from opencropphenotyping.io import build_band_catalog, select_bands, read_band, write_raster
+
 from opencropphenotyping.indices import compute_indexes
+from opencropphenotyping.io import build_band_catalog, read_band, select_bands, write_raster
 from opencropphenotyping.statistics import compute_statistics
-from opencropphenotyping.traits import create_vegetation_mask, compute_crop_cover
+from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mask
+
 
 @dataclass
 class ProcessingResult:

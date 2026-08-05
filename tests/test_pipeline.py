@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from opencropphenotyping.pipeline import ProcessingResult, process_sentinel2, export_results
+from opencropphenotyping.pipeline import ProcessingResult, export_results, process_sentinel2
 
 
 def test_process_sentinel2_with_ndvi(monkeypatch, tmp_path):
