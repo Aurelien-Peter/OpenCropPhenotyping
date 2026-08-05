@@ -23,7 +23,7 @@ def test_process_sentinel2_with_ndvi(monkeypatch, tmp_path):
     )
 
     # Mock select_bands
-    def mock_select_bands(catalog, resolution):
+    def mock_select_bands(catalog, resolution, output_dir):
         return {
             "B03": tmp_path / "B03_10m.jp2",
             "B04": tmp_path / "B04_10m.jp2",
@@ -104,6 +104,7 @@ def test_process_sentinel2_with_ndvi(monkeypatch, tmp_path):
         input_dir=tmp_path,
         ndvi_threshold=0.3,
         resolution=10,
+        output_dir=tmp_path,
     )
 
     # Check result
@@ -136,7 +137,7 @@ def test_process_sentinel2_without_ndvi(monkeypatch, tmp_path):
     )
 
     # Mock select_bands
-    def mock_select_bands(catalog, resolution):
+    def mock_select_bands(catalog, resolution, output_dir):
         return {
             "B03": tmp_path / "B03_10m.jp2",
             "B05": tmp_path / "B05_20m.jp2",
@@ -217,6 +218,7 @@ def test_process_sentinel2_without_ndvi(monkeypatch, tmp_path):
     # Run pipeline
     result = process_sentinel2(
         input_dir=tmp_path,
+        output_dir=tmp_path,
         resolution=10,
     )
 
@@ -247,7 +249,7 @@ def test_process_sentinel2_selected_indices(monkeypatch, tmp_path):
     )
 
     # Mock select_bands
-    def mock_select_bands(catalog, resolution):
+    def mock_select_bands(catalog, resolution, output_dir):
         return {
             "B03": tmp_path / "B03_10m.jp2",
             "B04": tmp_path / "B04_10m.jp2",
@@ -324,6 +326,7 @@ def test_process_sentinel2_selected_indices(monkeypatch, tmp_path):
     # Run pipeline
     result = process_sentinel2(
         input_dir=tmp_path,
+        output_dir=tmp_path,
         indices=["ndvi"],
         resolution=10,
     )
@@ -358,7 +361,7 @@ def test_process_sentinel2_missing_required_band(monkeypatch, tmp_path):
     )
 
     # Mock select_bands
-    def mock_select_bands(catalog, resolution):
+    def mock_select_bands(catalog, resolution, output_dir):
         return {
             "B03": tmp_path / "B03_10m.jp2",
             "B08": tmp_path / "B08_10m.jp2",
@@ -404,6 +407,7 @@ def test_process_sentinel2_missing_required_band(monkeypatch, tmp_path):
     ):
         result = process_sentinel2(
             input_dir=tmp_path,
+            output_dir=tmp_path,
             indices=["ndvi"],
             resolution=10,
         )

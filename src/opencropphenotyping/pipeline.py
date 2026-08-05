@@ -21,6 +21,7 @@ class ProcessingResult:
 
 def process_sentinel2(
     input_dir: Path,
+    output_dir: Path | None = None,
     indices: list[str] | None = None,
     ndvi_threshold: float = 0.3,
     resolution: int = 10,
@@ -40,6 +41,9 @@ def process_sentinel2(
     ---------- 
     input_dir : Path 
         Directory containing the input Sentinel-2 data. 
+    output_dir : Path | None, optional
+        Directory where the resampled rasters will be exported.
+        If ``None``, results are not exported.
     indices : list[str] | None, optional 
         Vegetation indices to compute. Available indices are ``"ndvi"``, 
         ``"savi"``, ``"ndre"``, and ``"gndvi"``. 
@@ -79,6 +83,7 @@ def process_sentinel2(
     bands = select_bands(
         catalog,
         resolution=resolution,
+        output_dir=output_dir
     )
 
     # 3. Read selected bands
