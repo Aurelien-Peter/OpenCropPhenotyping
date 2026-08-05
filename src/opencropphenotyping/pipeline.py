@@ -2,8 +2,10 @@ from dataclasses import dataclass
 import warnings
 
 import numpy as np
+import pandas as pd
 from pathlib import Path
-from opencropphenotyping.io import build_band_catalog, select_bands, read_band
+from opencropphenotyping import statistics
+from opencropphenotyping.io import build_band_catalog, select_bands, read_band, write_raster
 from opencropphenotyping.indices import compute_indexes
 from opencropphenotyping.statistics import compute_statistics
 from opencropphenotyping.traits import create_vegetation_mask, compute_crop_cover
@@ -11,6 +13,7 @@ from opencropphenotyping.traits import create_vegetation_mask, compute_crop_cove
 @dataclass
 class ProcessingResult:
     indices: dict[str, np.ndarray]
+    profile: dict
     statistics: dict[str, dict[str, float]]
     vegetation_mask: np.ndarray | None
     crop_cover: float | None
@@ -22,6 +25,27 @@ def process_sentinel2(
     ndvi_threshold: float = 0.3,
     resolution: int = 10,
 ) -> ProcessingResult:
+
+    """
+    Process Sentinel-2 imagery to compute vegetation indices, statistics, and crop cover.
+    
+    Parameters
+    ----------
+    input_dir: Path 
+        Path to the directory containing Sentinel-2 imagery.
+    indices: list[str] | None
+        List of vegetation indices to compute.
+    ndvi_threshold: float
+        Threshold for creating the vegetation mask.
+    resolution: int
+        Target resolution for band resampling.
+
+    Returns
+    ----------
+    ProcessingResult
+        A dataclass containing computed indices, statistics, vegetation mask, and crop cover.
+    
+    """
 
     # 1. Find available bands
     catalog = build_band_catalog(
@@ -43,6 +67,8 @@ def process_sentinel2(
         image, profile = read_band(band_path)
         band_images[band_name] = image
         band_profiles[band_name] = profile
+
+    profile = next(iter(band_profiles.values()))
 
     # 4. Compute requested vegetation indices
     if indices is None:
@@ -103,7 +129,61 @@ def process_sentinel2(
 
     return ProcessingResult(
         indices=computed_indices,
+        profile=profile,
         statistics=statistics,
         vegetation_mask=vegetation_mask,
         crop_cover=crop_cover,
     )
+
+def export_results(
+    result: ProcessingResult,
+    output_dir: Path,
+) -> None:
+    """
+    Export processing results to the specified output directory.
+
+    Parameters
+    ----------
+    result : ProcessingResult
+        Processing results containing vegetation indices,
+        statistics, vegetation mask, and crop cover.
+    output_dir : Path
+        Directory where the results will be saved.
+
+    Returns
+    -------
+    None
+    """
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    indices_dir = output_dir / "indices"
+    indices_dir.mkdir(exist_ok=True)
+
+    # Export indices
+    for index_name, index_raster in result.indices.items():
+        index_path = indices_dir / f"{index_name}.tif"
+        write_raster(index_raster, result.profile, index_path)
+
+    # Export statistics
+    stats_path = output_dir / "statistics.csv"
+    statistics_df = pd.DataFrame.from_dict(
+        result.statistics,
+        orient="index",
+    )
+    statistics_df.index.name = "index"
+    statistics_df.to_csv(stats_path, index=True)
+
+    # Export vegetation mask
+    if result.vegetation_mask is not None:
+        mask_path = output_dir / "vegetation_mask.tif"
+        write_raster(
+            result.vegetation_mask,
+            result.profile,
+            mask_path,
+        )
+
+    # Export crop cover
+    if result.crop_cover is not None:
+        cover_path = output_dir / "crop_cover.txt"
+        with open(cover_path, "w", encoding="utf-8") as f:
+            f.write(f"Crop Cover: {result.crop_cover:.2f}\n")
