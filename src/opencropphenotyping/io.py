@@ -209,10 +209,15 @@ def find_band(
         )
 
     else:
-        # Simplified dataset: search directly in the input directory
-        band_files = list(
-            input_dir.glob(f"*{band}*.tif")
-        )
+        # Simplified dataset: search directly in the input directory at given resolution
+        if resolution is not None:
+            band_files = list(
+                input_dir.glob(f"*{band}*_{resolution}m.tif")
+            )
+        else:
+            band_files = list(
+                input_dir.glob(f"*{band}*.tif")
+            )
 
     if len(band_files) == 0:
         raise FileNotFoundError(
