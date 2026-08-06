@@ -155,48 +155,76 @@ def find_granule(safe_path: Path) -> Path:
     return next((safe_path / "GRANULE").iterdir())
 
 
-def find_band(safe_path: Path, band: str, resolution: int | None) -> Path:
+def find_band(
+    input_dir: Path,
+    band: str,
+    resolution: int | None,
+) -> Path:
     """
-    Find the path to a specific band in a Sentinel-2 SAFE directory.
+    Find the path to a specific Sentinel-2 band or raster band file.
+
+    The function supports both standard Sentinel-2 SAFE products and
+    simplified datasets containing band files directly in the input directory.
 
     Parameters
     ----------
-    safe_path : Path
-        Path to the Sentinel-2 SAFE directory.
+    input_dir : Path
+        Path to the Sentinel-2 SAFE directory or simplified dataset directory.
     band : str
         Band identifier (e.g., 'B04', 'B08').
     resolution : int | None
-        Target resolution for the band file.
+        Target resolution for the band file. Used for Sentinel-2 SAFE products.
+        Ignored for simplified datasets.
 
     Returns
     -------
     Path
         Path to the band file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the expected directory or band file cannot be found.
+    FileExistsError
+        If multiple matching band files are found.
     """
 
-    granule_dir = find_granule(safe_path)
-    img_data_dir = granule_dir / "IMG_DATA"
+    # Check whether the input directory follows the Sentinel-2 SAFE structure
+    granule_dirs = list(input_dir.glob("GRANULE/*"))
 
-    if(resolution is not None):
-        img_data_dir = img_data_dir / f"R{resolution}m"
+    if granule_dirs:
+        granule_dir = find_granule(input_dir)
+        img_data_dir = granule_dir / "IMG_DATA"
 
-    ## Raise an error if the img_data_dir directory does not exist
-    if not img_data_dir.exists():
-        raise FileNotFoundError(f"IMG_DATA directory not found: {img_data_dir}")
+        if resolution is not None:
+            img_data_dir = img_data_dir / f"R{resolution}m"
 
-    # Search band file in all subdirectories of the granule directory
-    band_files = list(img_data_dir.rglob(f"*_{band}_*.jp2"))
+        if not img_data_dir.exists():
+            raise FileNotFoundError(
+                f"IMG_DATA directory not found: {img_data_dir}"
+            )
 
-    ## Raise an error if the band file does not exist
+        band_files = list(
+            img_data_dir.rglob(f"*_{band}_*.jp2")
+        )
+
+    else:
+        # Simplified dataset: search directly in the input directory
+        band_files = list(
+            input_dir.glob(f"*{band}*.tif")
+        )
+
     if len(band_files) == 0:
-        raise FileNotFoundError(f"Band file not found: {band} in {img_data_dir}")
+        raise FileNotFoundError(
+            f"Band file not found: {band} in {input_dir}"
+        )
 
-    ## Raise an error if there are multiple band files
     if len(band_files) > 1:
-        raise FileExistsError(f"Multiple band files found for {band}: {band_files}")
+        raise FileExistsError(
+            f"Multiple band files found for {band}: {band_files}"
+        )
 
-    band_file = next(img_data_dir.rglob(f"*_{band}_*.jp2"))
-    return band_file
+    return band_files[0]
 
 
 def write_raster(image: np.ndarray, profile: dict, output_path: Path) -> None:
