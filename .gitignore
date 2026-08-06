@@ -254,6 +254,7 @@ env/
 # =========================
 
 data/raw/*
+!data/raw/toy_datasets
 data/processed/*
 results/*
 *.zip

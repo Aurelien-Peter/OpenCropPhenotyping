@@ -427,6 +427,7 @@ def test_export_results(monkeypatch, tmp_path):
     vegetation_mask = np.ones((10, 10), dtype=bool)
 
     result = ProcessingResult(
+        product_name="test_product",
         indices={
             "ndvi": ndvi,
             "savi": savi,
@@ -465,25 +466,25 @@ def test_export_results(monkeypatch, tmp_path):
     )
 
     # Check indices
-    assert tmp_path / "indices" / "ndvi.tif" in written_rasters
-    assert tmp_path / "indices" / "savi.tif" in written_rasters
+    assert tmp_path / "test_product" / "indices" / "ndvi.tif" in written_rasters
+    assert tmp_path / "test_product" / "indices" / "savi.tif" in written_rasters
 
     assert written_rasters[
-        tmp_path / "indices" / "ndvi.tif"
+        tmp_path / "test_product" / "indices" / "ndvi.tif"
     ]["image"] is ndvi
 
     assert written_rasters[
-        tmp_path / "indices" / "ndvi.tif"
+        tmp_path / "test_product" / "indices" / "ndvi.tif"
     ]["profile"] == profile
 
     # Check vegetation mask
-    mask_path = tmp_path / "vegetation_mask.tif"
+    mask_path = tmp_path / "test_product" / "vegetation_mask.tif"
 
     assert mask_path in written_rasters
     assert written_rasters[mask_path]["image"] is vegetation_mask
 
     # Check statistics
-    statistics_path = tmp_path / "statistics.csv"
+    statistics_path = tmp_path / "test_product" / "statistics.csv"
 
     assert statistics_path.exists()
 
@@ -494,7 +495,7 @@ def test_export_results(monkeypatch, tmp_path):
     assert "savi,2.0,0.0" in content
 
     # Check crop cover
-    crop_cover_path = tmp_path / "crop_cover.txt"
+    crop_cover_path = tmp_path / "test_product" / "crop_cover.txt"
 
     assert crop_cover_path.exists()
 
@@ -514,6 +515,7 @@ def test_export_results_no_vegetation_mask_crop_cover(monkeypatch, tmp_path):
     vegetation_mask = None
 
     result = ProcessingResult(
+        product_name="test_product",
         indices={
             "ndvi": ndvi,
             "savi": savi,
@@ -552,11 +554,11 @@ def test_export_results_no_vegetation_mask_crop_cover(monkeypatch, tmp_path):
     )
 
     # Check vegetation mask
-    mask_path = tmp_path / "vegetation_mask.tif"
+    mask_path = tmp_path / "test_product" / "vegetation_mask.tif"
 
     assert mask_path not in written_rasters
 
     # Check crop cover
-    crop_cover_path = tmp_path / "crop_cover.txt"
+    crop_cover_path = tmp_path / "test_product" / "crop_cover.txt"
 
     assert not crop_cover_path.exists()
