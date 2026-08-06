@@ -19,6 +19,7 @@ The objective is to provide reproducible workflows to extract agronomic traits f
 - [X] Statistical analysis 
 - [X] Sentinel-2 processing pipeline
 - [X] Processing results export
+- [X] Batch processing of multiple Sentinel-2 products
 - [X] Visualization
 - [X] Unit Tests
 
@@ -206,6 +207,7 @@ Crop cover: **39.24%**
 ### Export
 
 The processing results can be exported to a dedicated output directory.
+For batch processing, each Sentinel-2 product is exported to its own subdirectory.
 
 The exported files include:
 
@@ -214,9 +216,9 @@ The exported files include:
 - a CSV file containing statistics for each vegetation index;
 - a text file containing the estimated crop cover.
 
-The output directory is organized as follows:
+The results directory is organized as follows:
 
-output_dir/   
+results/   
 ├── indices/   
 │ &ensp;&ensp;&ensp;├── ndvi.tif   
 │ &ensp;&ensp;&ensp;├── savi.tif  
