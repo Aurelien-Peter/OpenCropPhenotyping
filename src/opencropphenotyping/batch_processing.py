@@ -20,15 +20,25 @@ def process_batch(
         product_output_dir = output_dir / product_dir.name
         product_processed_dir = processed_dir / product_dir.name
 
-        result_product = process_sentinel2(
-            input_dir=product_dir,
-            output_dir=product_processed_dir,
-            indices=indices,
-            ndvi_threshold=ndvi_threshold,
-            resolution=resolution,
-        )
+        print(f"Processing product: {product_dir.name}")
 
-        export_results(
-            result_product,
-            product_output_dir,
-        )
+        try:
+            result_product = process_sentinel2(
+                input_dir=product_dir,
+                output_dir=product_processed_dir,
+                indices=indices,
+                ndvi_threshold=ndvi_threshold,
+                resolution=resolution,
+            )
+
+            export_results(
+                result_product,
+                product_output_dir,
+            )
+
+            print(f"Successfully processed: {product_dir.name}")
+
+        except Exception as error:
+            print(
+                f"Error processing product '{product_dir.name}': {error}"
+            )

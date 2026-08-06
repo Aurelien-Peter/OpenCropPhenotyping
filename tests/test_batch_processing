@@ -177,4 +177,52 @@ def test_process_batch_with_toy_datasets(tmp_path, project_root):
     assert (output_dir / "toy_dataset_2" / "indices" / "gndvi.tif").exists()
     assert not (output_dir / "toy_dataset_2" / "indices" / "ndre.tif").exists()
     assert not (output_dir / "toy_dataset_2" / "indices" / "savi.tif").exists()
- 
+
+def test_process_batch_continues_after_product_error(
+    tmp_path,
+    monkeypatch,
+):
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "results"
+    processed_dir = tmp_path / "processed"
+
+    product_1 = input_dir / "toy_dataset_1"
+    product_2 = input_dir / "toy_dataset_2"
+
+    product_1.mkdir(parents=True)
+    product_2.mkdir(parents=True)
+
+    def mock_process_sentinel2(
+        input_dir,
+        output_dir,
+        indices,
+        ndvi_threshold,
+        resolution,
+    ):
+        if input_dir.name == "toy_dataset_1":
+            raise FileNotFoundError("B05 not found")
+
+        return "fake_result"
+
+    def mock_export_results(result, output_dir):
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(
+        "opencropphenotyping.batch_processing.process_sentinel2",
+        mock_process_sentinel2,
+    )
+
+    monkeypatch.setattr(
+        "opencropphenotyping.batch_processing.export_results",
+        mock_export_results,
+    )
+
+    process_batch(
+        input_dir=input_dir,
+        output_dir=output_dir,
+        processed_dir=processed_dir,
+        indices=["ndvi"],
+    )
+
+    assert not (output_dir / "toy_dataset_1").exists()
+    assert (output_dir / "toy_dataset_2").exists()
