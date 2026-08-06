@@ -13,6 +13,7 @@ from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mas
 
 @dataclass
 class ProcessingResult:
+    product_name: str
     indices: dict[str, np.ndarray]
     profile: dict
     statistics: dict[str, dict[str, float]]
@@ -73,6 +74,9 @@ def process_sentinel2(
         - ``crop_cover``: proportion of pixels classified as vegetation, 
             or ``None`` if NDVI could not be computed. 
     """
+
+    # 0. Extract product name from input directory
+    product_name = input_dir.name
 
     # 1. Find available bands
     catalog = build_band_catalog(
@@ -156,6 +160,7 @@ def process_sentinel2(
     # 8. Return all results
 
     return ProcessingResult(
+        product_name=product_name,
         indices=computed_indices,
         profile=profile,
         statistics=statistics,
@@ -176,14 +181,15 @@ def export_results(
     The following directory structure is created::
 
         output_dir/
-        ├── indices/
-        │   ├── ndvi.tif
-        │   ├── savi.tif
-        │   ├── ndre.tif
-        │   └── gndvi.tif
-        ├── vegetation_mask.tif
-        ├── statistics.csv
-        └── crop_cover.txt
+        └── product_name/
+            ├── indices/
+            │       ├── ndvi.tif
+            │       ├── savi.tif
+            │       ├── ndre.tif
+            │       └── gndvi.tif
+            ├── vegetation_mask.tif
+            ├── statistics.csv
+            └── crop_cover.txt
 
     The vegetation mask and crop cover files are only created when the
     corresponding values are available in ``result``.
@@ -200,9 +206,9 @@ def export_results(
     -------
     None
     """
-    
-    output_dir.mkdir(parents=True, exist_ok=True)
-    indices_dir = output_dir / "indices"
+    output_product_dir = output_dir / result.product_name
+    output_product_dir.mkdir(parents=True, exist_ok=True)
+    indices_dir = output_product_dir / "indices"
     indices_dir.mkdir(exist_ok=True)
 
     # Export indices
@@ -211,7 +217,7 @@ def export_results(
         write_raster(index_raster, result.profile, index_path)
 
     # Export statistics
-    stats_path = output_dir / "statistics.csv"
+    stats_path = output_product_dir / "statistics.csv"
     statistics_df = pd.DataFrame.from_dict(
         result.statistics,
         orient="index",
@@ -221,7 +227,7 @@ def export_results(
 
     # Export vegetation mask
     if result.vegetation_mask is not None:
-        mask_path = output_dir / "vegetation_mask.tif"
+        mask_path = output_product_dir / "vegetation_mask.tif"
         write_raster(
             result.vegetation_mask,
             result.profile,
@@ -230,6 +236,6 @@ def export_results(
 
     # Export crop cover
     if result.crop_cover is not None:
-        cover_path = output_dir / "crop_cover.txt"
+        cover_path = output_product_dir / "crop_cover.txt"
         with open(cover_path, "w", encoding="utf-8") as f:
             f.write(f"Crop Cover: {result.crop_cover:.2f}\n")
