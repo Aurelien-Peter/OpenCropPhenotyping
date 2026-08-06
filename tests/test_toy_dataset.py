@@ -12,7 +12,7 @@ def project_root():
 
 
 def test_toy_dataset(project_root):
-    toy_dir = project_root / "data" / "toy_dataset"
+    toy_dir = project_root / "data" / "raw"  / "toy_datasets"  / "toy_dataset_1"
 
     b04 = toy_dir / "toy_image_b04.tif"
     b08 = toy_dir / "toy_image_b08.tif"
