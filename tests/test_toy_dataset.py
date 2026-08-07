@@ -1,14 +1,4 @@
-from pathlib import Path
-
-import pytest
-
 from opencropphenotyping.io import read_band
-
-
-## Create paths
-@pytest.fixture
-def project_root():
-    return Path(__file__).resolve().parents[1]
 
 
 def test_toy_dataset(project_root):
