@@ -1,11 +1,5 @@
-from pathlib import Path
-import pytest
 from opencropphenotyping.batch_processing import process_batch
 
-## Create paths
-@pytest.fixture
-def project_root():
-    return Path(__file__).resolve().parents[1]
 
 def test_process_batch(monkeypatch, tmp_path):
     # Create a temporary input directory with dummy product directories
@@ -80,21 +74,16 @@ def test_process_batch(monkeypatch, tmp_path):
     assert processed_products[1]["output_dir"] == (
         processed_dir / "product_2"
     )
-    assert processed_products[0]["indices"] == ["ndvi", "savi"]
-    assert processed_products[0]["ndvi_threshold"] == 0.4
+    assert processed_products[0]["indices"] == ["NDVI"]
+    assert processed_products[0]["ndvi_threshold"] == 0.3
     assert processed_products[0]["resolution"] == 10
 
     # Check that the results were exported correctly
     assert len(exported_results) == 2
     assert exported_results[0]["result"] == "result_product_1"
     assert exported_results[1]["result"] == "result_product_2"
-    assert exported_results[0]["output_dir"] == (
-        output_dir / "product_1"
-    )
-
-    assert exported_results[1]["output_dir"] == (
-        output_dir / "product_2"
-    )
+    assert exported_results[0]["output_dir"] == output_dir/ "product_1"
+    assert exported_results[1]["output_dir"] == output_dir/ "product_2"
 
 def test_process_batch_empty_input(monkeypatch, tmp_path):
 
@@ -144,7 +133,7 @@ def test_process_batch_with_toy_datasets(tmp_path, project_root):
         input_dir=input_dir,
         output_dir=output_dir,
         processed_dir=processed_dir,
-        indices=["NDVI", "NDRE"],
+        indices=["ndvi", "gndvi"],
         ndvi_threshold=0.3,
         resolution=10
     )

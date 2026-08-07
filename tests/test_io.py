@@ -19,11 +19,6 @@ from opencropphenotyping.io import (
 
 ## Create paths
 @pytest.fixture
-def project_root():
-    return Path(__file__).resolve().parents[1]
-
-
-@pytest.fixture
 def safe_dir(project_root):
     return project_root / "data" / "raw" / "sentinel_2" / "S2A_MSIL2A_20250804T104701_N0511_R051_T31TCJ_20250804T161517.SAFE"
 
