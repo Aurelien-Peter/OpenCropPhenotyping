@@ -68,14 +68,14 @@ def batch(
     """Process multiple Sentinel-2 products from a directory."""
     
     try:
-        result = process_batch(
-        input_dir=input_dir,
-        output_dir=output_dir,
-        processed_dir=processed_dir,
-        indices=indices,
-        ndvi_threshold=ndvi_threshold,
-        resolution=resolution,
-    )
+        process_batch(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            processed_dir=processed_dir,
+            indices=indices,
+            ndvi_threshold=ndvi_threshold,
+            resolution=resolution,
+        )
     except Exception as e:
         typer.echo(f"Error during processing: {e}", err=True)
         raise typer.Exit(code=1)
