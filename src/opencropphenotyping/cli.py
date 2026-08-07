@@ -26,6 +26,8 @@ def process(
         help="Target spatial resolution in meters.",
     ),
 ):
+    """Process a single Sentinel-2 product."""
+
     try:
         result = process_sentinel2(
             input_dir=input_dir,
@@ -63,6 +65,8 @@ def batch(
         help="Target spatial resolution in meters.",
     ),
 ):
+    """Process multiple Sentinel-2 products from a directory."""
+    
     try:
         result = process_batch(
         input_dir=input_dir,

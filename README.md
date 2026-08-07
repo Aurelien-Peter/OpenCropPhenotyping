@@ -22,6 +22,7 @@ The objective is to provide reproducible workflows to extract agronomic traits f
 - [X] Batch processing of multiple Sentinel-2 products
 - [X] Visualization
 - [X] Unit Tests
+- [X] Command-Line Interface (CLI)
 
 ## Case studies
 
@@ -119,6 +120,67 @@ pip install -e .
 The repository already includes a small Sentinel-2 toy dataset.
 
 No additional data download is required to run the examples
+
+## Command-line interface
+
+OpenCropPhenotyping provides a command-line interface to process Sentinel-2 products directly from a terminal.
+
+After installing the package, the opencropphenotyping command provides two main operations:
+
+- process: process a single Sentinel-2 product.
+- batch: process multiple Sentinel-2 products contained in a directory.
+
+### Process a single product
+
+opencropphenotyping process \
+    --input-dir path/to/Sentinel2_product \
+    --output-dir path/to/results \
+    --processed-dir path/to/processed \
+    --indices ndvi \
+    --ndvi-threshold 0.3 \
+    --resolution 10
+
+The command processes the Sentinel-2 product, computes the requested vegetation indices, generates the vegetation mask and crop-cover statistics, and exports the results.
+
+### Process multiple products
+
+opencropphenotyping batch \
+    --input-dir path/to/sentinel2_products \
+    --output-dir path/to/results \
+    --processed-dir path/to/processed \
+    --indices ndvi \
+    --ndvi-threshold 0.3 \
+    --resolution 10
+
+The input directory should contain one Sentinel-2 product per subdirectory. Each product is processed independently and its results are stored in a dedicated subdirectory.
+
+For example:
+
+input/
+├── S2A_MSIL2A_product_1.SAFE/
+└── S2B_MSIL2A_product_2.SAFE/
+
+produces:
+
+results/
+├── S2A_MSIL2A_product_1.SAFE/
+└── S2B_MSIL2A_product_2.SAFE/
+
+### Get help
+
+General help is available with:
+
+opencropphenotyping --help
+
+Help for an individual command can be obtained with:
+
+opencropphenotyping process --help
+
+or:
+
+opencropphenotyping batch --help
+
+If an error occurs while processing a product, the CLI reports the error and exits with a non-zero status code.
 
 ## Example workflow
 
