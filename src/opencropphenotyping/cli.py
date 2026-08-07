@@ -2,8 +2,8 @@ from pathlib import Path
 
 import typer
 
-from opencropphenotyping.pipeline import export_results, process_sentinel2
 from opencropphenotyping.batch_processing import process_batch
+from opencropphenotyping.pipeline import export_results, process_sentinel2
 
 app = typer.Typer()
 

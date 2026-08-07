@@ -1,5 +1,6 @@
-from opencropphenotyping.cli import app
 from typer.testing import CliRunner
+
+from opencropphenotyping.cli import app
 
 runner = CliRunner()
 

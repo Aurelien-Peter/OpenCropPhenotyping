@@ -1,6 +1,5 @@
-from pathlib import Path
-import pytest
 from opencropphenotyping.batch_processing import process_batch
+
 
 def test_process_batch(monkeypatch, tmp_path):
     # Create a temporary input directory with dummy product directories
