@@ -1,0 +1,53 @@
+from PIL import Image
+import numpy as np
+import pytest
+
+from opencropphenotyping.rgb import read_rgb_image
+
+
+def test_read_rgb(tmp_path):
+    image_path = tmp_path / "test_rgb.png"
+
+    image = Image.new("RGB", (2, 2))
+
+    image.putdata([
+        (255, 0, 0),
+        (0, 255, 0),
+        (0, 0, 255),
+        (100, 150, 200),
+    ])
+
+    image.save(image_path)
+
+    red, green, blue = read_rgb_image(image_path)
+
+    assert red.shape == (2, 2)
+    assert green.shape == (2, 2)
+    assert blue.shape == (2, 2)
+
+    assert np.array_equal(
+        red,
+        [[255, 0],
+         [0, 100]],
+    )
+
+    assert np.array_equal(
+        green,
+        [[0, 255],
+         [0, 150]],
+    )
+
+    assert np.array_equal(
+        blue,
+        [[0, 0],
+         [255, 200]],
+    )
+
+def test_read_rgb_rejects_non_rgb(tmp_path):
+    image_path = tmp_path / "test_grayscale.png"
+
+    image = Image.new("L", (2, 2), color=128)
+    image.save(image_path)
+
+    with pytest.raises(TypeError):
+        read_rgb_image(image_path)
