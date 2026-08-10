@@ -144,6 +144,25 @@ def compute_savi(red_band: np.ndarray, nir_band: np.ndarray, L_factor : float = 
 
     return savi.astype(np.float32)
 
+VEGETATION_INDICES = {
+    "ndvi": {
+        "function": compute_ndvi,
+        "bands": ["red_band", "nir_band"],
+    },
+    "savi": {
+        "function": compute_savi,
+        "bands": ["red_band", "nir_band"],
+    },
+    "ndre": {
+        "function": compute_ndre,
+        "bands": ["nir_band", "red_edge_band"],
+    },
+    "gndvi": {
+        "function": compute_gndvi,
+        "bands": ["nir_band", "green_band"],
+    },
+}
+
 def compute_indexes(
         red_band: np.ndarray | None = None,
         nir_band: np.ndarray | None = None,
@@ -151,23 +170,65 @@ def compute_indexes(
         red_edge_band: np.ndarray | None = None,
         indices: list[str] | None = None,
     ) -> dict[str, np.ndarray]:
+    """Compute vegetation indices from available spectral bands.
+
+    Parameters
+    ----------
+    red_band : np.ndarray or None, optional
+        Red spectral band.
+    nir_band : np.ndarray or None, optional
+        Near-infrared (NIR) spectral band.
+    green_band : np.ndarray or None, optional
+        Green spectral band.
+    red_edge_band : np.ndarray or None, optional
+        Red-edge spectral band.
+    indices : list[str] or None, optional
+        Names of the vegetation indices to compute. If None, all
+        available vegetation indices are requested.
+
+    Returns
+    -------
+    dict[str, np.ndarray]
+        Dictionary mapping each successfully computed vegetation index
+        to its resulting array. An index is skipped when one or more
+        of its required spectral bands are unavailable.
+
+    Raises
+    ------
+    ValueError
+        If an unknown vegetation index is requested.
+    """
     results = {}
 
     if indices is None:
         indices = ["ndvi", "savi", "ndre", "gndvi"]
-    
-    if(nir_band is not None):
-        if(red_band is not None):
-            if "ndvi" in indices:
-                results["ndvi"] = compute_ndvi(red_band, nir_band)
-            if "savi" in indices:
-                results["savi"] = compute_savi(red_band, nir_band)
-        if(red_edge_band is not None):
-            if "ndre" in indices:
-                results["ndre"] = compute_ndre(nir_band, red_edge_band)
-        if(green_band is not None):
-            if "gndvi" in indices:
-                results["gndvi"] = compute_gndvi(nir_band, green_band)
+
+    available_bands = {
+        "red_band": red_band,
+        "nir_band": nir_band,
+        "green_band": green_band,
+        "red_edge_band": red_edge_band,
+    }
+
+    for index in indices:
+        if index not in VEGETATION_INDICES:
+            raise ValueError(f"Unknown vegetation index: {index}")
+        
+        index_config = VEGETATION_INDICES[index]
+        required_bands = index_config["bands"]
+
+        if all(
+            available_bands[band] is not None
+            for band in required_bands
+        ):
+            compute_function = index_config["function"]
+            band_arrays = [
+                available_bands[band]
+                for band in required_bands
+            ]
+
+            results[index] = compute_function(*band_arrays)
+            
     return results
     
     

@@ -303,3 +303,28 @@ def test_compute_indexes_none_indices():
     assert "ndre" in indices
     assert "savi" in indices
     assert len(indices) == 4
+
+def test_compute_indexes_missing_band_for_selected_index():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+
+    indices = compute_indexes(
+        red_band=red_band,
+        nir_band=nir_band,
+        indices=["ndvi", "ndre"],
+    )
+
+    assert "ndvi" in indices
+    assert "ndre" not in indices
+    assert len(indices) == 1
+
+def test_compute_indexes_unknown_index():
+    red_band = np.array([1, 2], dtype=np.int32)
+    nir_band = np.array([3, 4], dtype=np.int32)
+
+    with pytest.raises(ValueError, match="Unknown vegetation index"):
+        compute_indexes(
+            red_band=red_band,
+            nir_band=nir_band,
+            indices=["unknown"],
+        )
