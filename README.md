@@ -23,6 +23,7 @@ The objective is to provide reproducible workflows to extract agronomic traits f
 - [X] Visualization
 - [X] Unit Tests
 - [X] Command-Line Interface (CLI)
+- [X] RGB UAV imagery reading
 
 ## Case studies
 
@@ -67,7 +68,7 @@ Current case studies:
 ### Version 0.3
 #### Drone imagery
 
-- UAV imagery
+- RGB UAV imagery reading
 - Orthomosaic support
 - Vegetation segmentation
 - RGB vegetation indices
@@ -132,6 +133,7 @@ After installing the package, the opencropphenotyping command provides two main 
 
 ### Process a single product
 
+```python
 opencropphenotyping process \
     --input-dir path/to/Sentinel2_product \
     --output-dir path/to/results \
@@ -139,11 +141,13 @@ opencropphenotyping process \
     --indices ndvi \
     --ndvi-threshold 0.3 \
     --resolution 10
+```
 
 The command processes the Sentinel-2 product, computes the requested vegetation indices, generates the vegetation mask and crop-cover statistics, and exports the results.
 
 ### Process multiple products
 
+```python
 opencropphenotyping batch \
     --input-dir path/to/sentinel2_products \
     --output-dir path/to/results \
@@ -151,6 +155,7 @@ opencropphenotyping batch \
     --indices ndvi \
     --ndvi-threshold 0.3 \
     --resolution 10
+```
 
 The input directory should contain one Sentinel-2 product per subdirectory. Each product is processed independently and its results are stored in a dedicated subdirectory.
 
@@ -290,10 +295,27 @@ results/
 ├── statistics.csv  
 └── crop_cover.txt 
 
+### RGB UAV imagery
+
+OpenCropPhenotyping supports the reading of RGB images acquired from UAV platforms.
+
+RGB images are loaded as three separate NumPy arrays corresponding to the red, green and blue channels:
+
+```python
+from opencropphenotyping.rgb import read_rgb_image
+
+red, green, blue = read_rgb_image(image_path)
+```
+
+The three returned arrays have the same spatial dimensions as the input image.
+
+This functionality provides the foundation for future RGB-based workflows, including vegetation segmentation, RGB vegetation indices and crop trait extraction.
+
 ### Processing pipeline
 
 The Sentinel-2 processing pipeline provides a high-level interface to process Sentinel-2 imagery and extract vegetation-related traits.
 
+```python
 from pathlib import Path
 
 from opencropphenotyping.pipeline import (
@@ -315,16 +337,21 @@ export_results(
     result,
     output_dir=output_dir,
 )
+```
 
 The indices parameter can be used to select which vegetation indices are computed:
 
+```python
 indices=["ndvi"]
+```
 
 or:
 
+```python
 indices=["ndvi", "savi", "ndre", "gndvi"]
+```
 
-If indices=None, all available vegetation indices are requested.
+If ```python indices=None```, all available vegetation indices are requested.
 
 If the bands required for a requested index are unavailable, that index is not computed and the pipeline continues processing the other available indices.
 
