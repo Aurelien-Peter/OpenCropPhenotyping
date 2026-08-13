@@ -28,6 +28,7 @@ dev = [
     "ruff",
     "jupyter",
     "plotly",
+    "scipy",
 ]
 
 [project.scripts]
