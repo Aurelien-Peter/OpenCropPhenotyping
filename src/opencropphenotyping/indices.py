@@ -231,4 +231,23 @@ def compute_indexes(
             
     return results
     
-    
+def compute_exg(rgb: np.ndarray) -> np.ndarray:
+    """Compute the Excess Green Index (ExG).
+
+    Parameters
+    ----------
+    rgb
+        RGB image with shape (height, width, 3).
+
+    Returns
+    -------
+    np.ndarray
+        ExG image.
+    """
+    rgb = rgb.astype(np.float32)
+
+    red = rgb[:, :, 0]
+    green = rgb[:, :, 1]
+    blue = rgb[:, :, 2]
+
+    return 2 * green - red - blue
