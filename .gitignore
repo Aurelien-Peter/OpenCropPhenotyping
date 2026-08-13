@@ -257,6 +257,7 @@ data/raw/*
 !data/raw/toy_datasets
 data/processed/*
 results/*
+docs/OpenCropPhenotyping*
 *.zip
 
 # =========================
