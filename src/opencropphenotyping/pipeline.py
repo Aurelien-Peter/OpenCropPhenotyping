@@ -8,7 +8,7 @@ import pandas as pd
 from opencropphenotyping.indices import compute_indexes
 from opencropphenotyping.io import build_band_catalog, read_band, select_bands, write_raster
 from opencropphenotyping.statistics import compute_statistics
-from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mask
+from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mask_ndvi
 
 
 @dataclass
@@ -149,7 +149,7 @@ def process_sentinel2(
     crop_cover = None
 
     if "ndvi" in computed_indices:
-        vegetation_mask = create_vegetation_mask(
+        vegetation_mask = create_vegetation_mask_ndvi(
             computed_indices["ndvi"],
             threshold=ndvi_threshold,
         )
