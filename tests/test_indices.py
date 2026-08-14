@@ -332,12 +332,15 @@ def test_compute_indexes_unknown_index():
 
 def test_exg_simple():
     rgb_band = np.array(
-        [
-            [[10, 20, 30], [20, 30, 40]],
+        [[[10, 20, 30], [20, 30, 40]],
             [[30, 40, 50], [40, 50, 60]],
         ],
         dtype=np.uint8,
     )
+
+    red = rgb_band[:, :, 0]
+    green = rgb_band[:, :, 1]
+    blue = rgb_band[:, :, 2]
 
     expected_exg = np.array(
         [
@@ -347,7 +350,7 @@ def test_exg_simple():
         dtype=np.float32,
     )
 
-    computed_exg = compute_exg(rgb_band)
+    computed_exg = compute_exg((red, green, blue))
     assert np.allclose(computed_exg, expected_exg), "exg computation failed for simple case."
 
 def test_exg_large_values():
@@ -365,7 +368,7 @@ def test_exg_large_values():
 
     expected_exg = 2 * green - red - blue
 
-    computed_exg = compute_exg(rgb_band)
+    computed_exg = compute_exg((red, green, blue))
     assert np.allclose(computed_exg, expected_exg), "exg computation failed for large values."
 
 def test_exg_large_array():
@@ -382,16 +385,41 @@ def test_exg_large_array():
 
     expected_exg = 2 * green - red - blue
 
-    computed_exg = compute_exg(rgb_band)
+    computed_exg = compute_exg((red, green, blue))
     assert np.allclose(computed_exg, expected_exg), "exg computation failed for large values."
 
 
 def test_exg_type():
-    rgb_band = np.random.randint(
-        0,
-        256,
-        size=(10, 10, 3),
+    rgb_band = np.array(
+        [
+            [[10, 20, 30], [20, 30, 40]],
+            [[30, 40, 50], [40, 50, 60]],
+        ],
         dtype=np.uint8,
     )
-    computed_exg = compute_exg(rgb_band)
+
+    rgb = (
+        rgb_band[:, :, 0],
+        rgb_band[:, :, 1],
+        rgb_band[:, :, 2],
+    )
+
+    computed_exg = compute_exg(rgb)
+
     assert computed_exg.dtype == np.float32, "exg output type is not float32."
+
+def test_exg_negative_values():
+    rgb = (
+        np.array([[100]], dtype=np.uint8),
+        np.array([[50]], dtype=np.uint8),
+        np.array([[100]], dtype=np.uint8),
+    )
+
+    computed_exg = compute_exg(rgb)
+
+    expected_exg = np.array([[-100]], dtype=np.float32)
+
+    assert np.allclose(
+        computed_exg,
+        expected_exg,
+    )
