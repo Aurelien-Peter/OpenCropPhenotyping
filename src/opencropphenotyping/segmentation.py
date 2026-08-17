@@ -447,8 +447,8 @@ def count_vegetation_pixels(
 
 def compute_vegetation_centroids(
     row_mask: np.ndarray,
-    plant_positions: np.ndarray,
     search_windows: list[tuple[int, int]],
+    row_y_start: int,
 ) -> list[tuple[float, float] | None]:
     """
     Compute vegetation centroids within plant search windows.
@@ -457,17 +457,17 @@ def compute_vegetation_centroids(
     ----------
     row_mask : np.ndarray
         Binary vegetation mask for one crop-row region.
-    plant_positions : np.ndarray
-        Theoretical plant positions along the crop row.
-        Used to associate each centroid with its expected position.
     search_windows : list[tuple[int, int]]
         Search windows represented as ``(x_start, x_end)`` pixel
         coordinates. The end coordinate is exclusive.
+    row_y_start : int
+        Vertical position of the crop-row region in the full rotated image.
 
     Returns
     -------
     list[tuple[float, float] | None]
-        Vegetation centroid ``(x, y)`` for each search window.
+        Vegetation centroid ``(x, y)`` for each search window, expressed
+        in the coordinate system of the full rotated image..
         ``None`` is returned when no vegetation pixels are present
         in a window.
     """
@@ -486,8 +486,12 @@ def compute_vegetation_centroids(
         # in the complete row image.
         x_coords_global = x_coords + start
 
+        # Convert local y coordinates to coordinates in the full
+        # rotated image.
+        y_coords_global = y_coords + row_y_start
+
         centroid_x = float(x_coords_global.mean())
-        centroid_y = float(y_coords.mean())
+        centroid_y = float(y_coords_global.mean())
 
         vegetation_centroids.append(
             (centroid_x, centroid_y)

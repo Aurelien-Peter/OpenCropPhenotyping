@@ -369,8 +369,6 @@ def test_compute_vegetation_centroids():
         [False, True, False, False],
     ])
 
-    plant_positions = np.array([0, 3])
-
     search_windows = [
         (0, 2),
         (2, 4),
@@ -378,8 +376,8 @@ def test_compute_vegetation_centroids():
 
     centroids = compute_vegetation_centroids(
         row_mask=row_mask,
-        plant_positions=plant_positions,
         search_windows=search_windows,
+        row_y_start=0,
     )
 
     assert centroids[0] == (0.5, 0.75)
@@ -391,19 +389,36 @@ def test_compute_vegetation_centroids_global_x():
         [False, False, True, False],
     ])
 
-    plant_positions = np.array([3])
-
     search_windows = [(2, 4)]
 
     centroids = compute_vegetation_centroids(
         row_mask=row_mask,
-        plant_positions=plant_positions,
         search_windows=search_windows,
+        row_y_start=0,
     )
 
     assert np.allclose(
         centroids[0],
         (2.3333333333, 0.3333333333),
+    )
+
+def test_compute_vegetation_centroids_global_coordinates():
+    row_mask = np.array([
+        [False, False, True, True],
+        [False, False, True, False],
+    ])
+
+    search_windows = [(2, 4)]
+
+    centroids = compute_vegetation_centroids(
+        row_mask=row_mask,
+        search_windows=search_windows,
+        row_y_start=100,
+    )
+
+    assert np.allclose(
+        centroids[0],
+        (2.3333333333, 100.3333333333),
     )
 
 def test_build_plant_dataframe():
