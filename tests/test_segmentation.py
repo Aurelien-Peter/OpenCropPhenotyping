@@ -215,11 +215,11 @@ def test_segment_row_images():
         expected,
     )
 
-def test_estimate_plant_positions():
+def test_estimate_plant_positions_from_vegetation():
     row_mask = np.zeros((20, 100), dtype=bool)
     row_mask[:, 10:90] = True
 
-    positions = estimate_plant_positions(
+    positions = estimate_plant_positions_from_vegetation(
         row_mask=row_mask,
         n_plants=4,
         profile_window_length=11,
@@ -232,10 +232,10 @@ def test_estimate_plant_positions():
     assert np.all(positions >= 0)
     assert np.all(positions < row_mask.shape[1])
 
-def test_estimate_plant_positions_no_vegetation():
+def test_estimate_plant_positions_from_vegetation_no_vegetation():
     row_mask = np.zeros((20, 100), dtype=bool)
 
-    positions = estimate_plant_positions(
+    positions = estimate_plant_positions_from_vegetation(
         row_mask=row_mask,
         n_plants=4,
         profile_window_length=11,
@@ -248,23 +248,23 @@ def test_estimate_plant_positions_no_vegetation():
         np.array([], dtype=int),
     )
 
-def test_estimate_plant_positions_invalid_n_plants():
+def test_estimate_plant_positions_from_vegetation_invalid_n_plants():
     row_mask = np.ones((20, 100), dtype=bool)
 
     with pytest.raises(
         ValueError,
         match="greater than or equal to 2",
     ):
-        estimate_plant_positions(
+        estimate_plant_positions_from_vegetation(
             row_mask=row_mask,
             n_plants=1,
         )
 
-def test_estimate_plant_positions_number_of_plants():
+def test_estimate_plant_positions_from_vegetation_number_of_plants():
     row_mask = np.zeros((20, 120), dtype=bool)
     row_mask[:, 10:110] = True
 
-    positions = estimate_plant_positions(
+    positions = estimate_plant_positions_from_vegetation(
         row_mask=row_mask,
         n_plants=6,
         profile_window_length=11,
@@ -273,6 +273,40 @@ def test_estimate_plant_positions_number_of_plants():
     )
 
     assert len(positions) == 6
+
+def test_estimate_plant_positions_from_plot():
+    positions = estimate_plant_positions_from_plot(
+        x_start=10,
+        x_end=90,
+        n_plants=4,
+    )
+
+    np.testing.assert_array_equal(
+        positions,
+        [20, 40, 60, 80],
+    )
+
+def test_estimate_plant_positions_from_plot_invalid_n_plants():
+    with pytest.raises(
+        ValueError,
+        match="greater than or equal to 2",
+    ):
+        estimate_plant_positions_from_plot(
+            x_start=10,
+            x_end=90,
+            n_plants=1,
+        )
+
+def test_estimate_plant_positions_from_plot_with_bounds():
+    positions = estimate_plant_positions_from_plot(
+        x_start=15,
+        x_end=1675,
+        n_plants=20,
+    )
+
+    assert np.all(positions > 15)
+    assert np.all(positions < 1675)
+    assert np.all(np.diff(positions) > 0)
 
 def test_define_plant_search_windows():
     plant_positions = np.array([20, 40, 60, 80])

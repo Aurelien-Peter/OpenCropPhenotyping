@@ -254,7 +254,7 @@ def segment_row_images(
 
     return row_masks
 
-def estimate_plant_positions(
+def estimate_plant_positions_from_vegetation(
     row_mask: np.ndarray,
     n_plants: int,
     profile_window_length: int = 31,
@@ -262,7 +262,7 @@ def estimate_plant_positions(
     row_profile_threshold: float = 20,
 ) -> np.ndarray:
     """
-    Estimate theoretical plant positions along a crop row.
+    Estimate theoretical plant positions along a crop row from the vegetation signal.
 
     The binary vegetation mask is projected along the crop-row direction
     to obtain a one-dimensional vegetation profile. The profile is smoothed
@@ -344,6 +344,56 @@ def estimate_plant_positions(
     )
 
     # Use the centre of each interval as the theoretical plant position.
+    plant_positions = (
+        segment_edges[:-1] + segment_edges[1:]
+    ) / 2
+
+    return np.round(plant_positions).astype(int)
+
+def estimate_plant_positions_from_plot(
+    x_start: int,
+    x_end: int,
+    n_plants: int,
+) -> np.ndarray:
+    """
+    Estimate theoretical plant positions from known crop-row boundaries.
+
+    The crop-row extent is defined externally from the experimental
+    plot geometry. This extent is divided into ``n_plants`` equal
+    planting intervals, and the centre of each interval is used as the
+    expected plant position.
+
+    Parameters
+    ----------
+    x_start : int
+        Starting x-coordinate of the crop-row extent.
+    x_end : int
+        Ending x-coordinate of the crop-row extent.
+    n_plants : int
+        Expected number of plants along the crop row. Must be greater
+        than or equal to 2.
+
+    Returns
+    -------
+    np.ndarray
+        Theoretical plant positions expressed as integer x-coordinates.
+
+    Raises
+    ------
+    ValueError
+        If ``n_plants`` is less than 2.
+    """
+    if n_plants < 2:
+        raise ValueError(
+            "The number of plants per row must be greater than or equal to 2."
+        )
+
+    segment_edges = np.linspace(
+        x_start,
+        x_end,
+        n_plants + 1,
+    )
+
     plant_positions = (
         segment_edges[:-1] + segment_edges[1:]
     ) / 2
