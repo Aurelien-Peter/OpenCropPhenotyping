@@ -19,6 +19,7 @@ dependencies = [
     "matplotlib",
     "pandas",
     "typer",
+    "scipy",
 ]
 
 [project.optional-dependencies]
@@ -28,7 +29,7 @@ dev = [
     "ruff",
     "jupyter",
     "plotly",
-    "scipy",
+    "geopandas"
 ]
 
 [project.scripts]
