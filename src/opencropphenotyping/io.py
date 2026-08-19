@@ -5,6 +5,7 @@ import numpy as np
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.warp import reproject
+from rasterio.transform import from_origin
 
 
 def build_band_catalog(
@@ -399,3 +400,63 @@ def read_rgb_image(image_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray
     blue = np.asarray(blue)
 
     return red, green, blue
+
+def write_georeferenced_tiff(
+    input_path: Path,
+    output_path: Path,
+    crs: str = "EPSG:3857",
+) -> None:
+    """
+    Convert an image to a georeferenced GeoTIFF.
+
+    The image is assigned a local spatial reference system where one
+    spatial unit corresponds to one pixel. The upper-left corner is
+    placed at (0, image_height), so that the spatial coordinates remain
+    consistent with the image pixel grid.
+
+    Parameters
+    ----------
+    input_path : Path
+        Path to the input image.
+    output_path : Path
+        Path of the output GeoTIFF.
+    crs : str, default="EPSG:3857"
+        Coordinate reference system assigned to the output raster.
+
+    Returns
+    -------
+    None
+        The GeoTIFF is written to ``output_path``.
+    """
+    image = Image.open(input_path)
+    array = np.asarray(image)
+
+    height, width = array.shape[:2]
+
+    transform = from_origin(
+        0,
+        height,
+        1,
+        1,
+    )
+
+    count = 1 if array.ndim == 2 else array.shape[2]
+
+    with rasterio.open(
+        output_path,
+        "w",
+        driver="GTiff",
+        width=width,
+        height=height,
+        count=count,
+        dtype=array.dtype,
+        transform=transform,
+        crs=crs,
+    ) as dst:
+
+        if count == 1:
+            dst.write(array, 1)
+        else:
+            dst.write(
+                np.moveaxis(array, 2, 0)
+            )

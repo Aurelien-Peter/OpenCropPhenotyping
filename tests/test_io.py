@@ -16,6 +16,7 @@ from opencropphenotyping.io import (
     write_raster,
     read_rgb_image,
     read_rgb_image,
+    write_georeferenced_tiff,
 )
 
 ## Create paths
@@ -455,3 +456,80 @@ def test_read_rgb_rejects_non_rgb(tmp_path):
 
     with pytest.raises(TypeError):
         read_rgb_image(image_path)
+
+def test_write_georeferenced_tiff(tmp_path):
+    input_path = tmp_path / "input.png"
+    output_path = tmp_path / "output.tif"
+
+    # Create a small RGB test image.
+    image = np.array(
+        [
+            [[10, 20, 30], [40, 50, 60]],
+            [[70, 80, 90], [100, 110, 120]],
+        ],
+        dtype=np.uint8,
+    )
+
+    Image.fromarray(image).save(input_path)
+
+    write_georeferenced_tiff(
+        input_path=input_path,
+        output_path=output_path,
+    )
+
+    # Check that the GeoTIFF has been created.
+    assert output_path.exists()
+
+    with rasterio.open(output_path) as src:
+        assert src.width == 2
+        assert src.height == 2
+        assert src.count == 3
+        assert src.dtypes == ("uint8", "uint8", "uint8")
+
+        assert src.crs.to_string() == "EPSG:3857"
+
+        expected_transform = from_origin(
+            0,
+            2,
+            1,
+            1,
+        )
+
+        assert src.transform == expected_transform
+
+        # Rasterio stores data as (bands, height, width).
+        expected = np.moveaxis(image, 2, 0)
+
+        np.testing.assert_array_equal(
+            src.read(),
+            expected,
+        )
+
+def test_write_georeferenced_tiff_grayscale(tmp_path):
+    input_path = tmp_path / "input.png"
+    output_path = tmp_path / "output.tif"
+
+    image = np.array(
+        [
+            [10, 20],
+            [30, 40],
+        ],
+        dtype=np.uint8,
+    )
+
+    Image.fromarray(image).save(input_path)
+
+    write_georeferenced_tiff(
+        input_path=input_path,
+        output_path=output_path,
+    )
+
+    with rasterio.open(output_path) as src:
+        assert src.width == 2
+        assert src.height == 2
+        assert src.count == 1
+
+        np.testing.assert_array_equal(
+            src.read(1),
+            image,
+        )
