@@ -133,24 +133,28 @@ def detect_crop_rows(
 
     return peaks
 
-def compute_row_boundaries(
+def compute_row_boundaries_from_peaks(
     row_positions: np.ndarray,
     image_height: int,
 ) -> np.ndarray:
     """
-    Compute search-band boundaries from detected crop-row positions.
+    Compute crop-row boundaries from detected row positions.
+
+    Boundaries between neighbouring rows are placed halfway between
+    consecutive detected row positions. The outer boundaries are
+    estimated using the mean distance between consecutive rows.
 
     Parameters
     ----------
     row_positions : np.ndarray
-        Vertical positions of detected crop rows in pixels.
+        Vertical positions of detected crop rows.
     image_height : int
         Height of the image in pixels.
 
     Returns
     -------
     np.ndarray
-        Vertical boundaries separating crop-row search bands.
+        Vertical boundaries separating crop-row regions.
     """
     if len(row_positions) == 0:
         return np.array([])
@@ -158,28 +162,73 @@ def compute_row_boundaries(
     if len(row_positions) == 1:
         return np.array([0, image_height])
 
-    spacings = np.diff(row_positions)
-    mean_spacing = spacings.mean()
+    row_spacings = np.diff(row_positions)
+    mean_spacing = row_spacings.mean()
 
     internal_boundaries = (
         row_positions[:-1] + row_positions[1:]
     ) / 2
 
-    top_boundary = row_positions[0] - mean_spacing / 2
-    bottom_boundary = row_positions[-1] + mean_spacing / 2
+    top_boundary = max(
+        0,
+        row_positions[0] - mean_spacing / 2,
+    )
 
-    boundaries = np.concatenate(
-        (
+    bottom_boundary = min(
+        image_height,
+        row_positions[-1] + mean_spacing / 2,
+    )
+
+    return np.concatenate(
+        [
             [top_boundary],
             internal_boundaries,
             [bottom_boundary],
-        )
+        ]
     )
 
-    boundaries[0] = max(0, boundaries[0])
-    boundaries[-1] = min(image_height, boundaries[-1])
+def compute_row_boundaries_from_plot(
+    y_start: int,
+    y_end: int,
+    n_rows: int,
+) -> np.ndarray:
+    """
+    Compute crop-row boundaries from known plot extent and row count.
 
-    return boundaries
+    The vertical extent of the experimental plot is divided into
+    ``n_rows`` equal regions.
+
+    Parameters
+    ----------
+    y_start : int
+        Starting y-coordinate of the plot in the rotated image.
+    y_end : int
+        Ending y-coordinate of the plot in the rotated image.
+    n_rows : int
+        Expected number of crop rows.
+
+    Returns
+    -------
+    np.ndarray
+        Vertical boundaries separating crop-row regions.
+
+    Raises
+    ------
+    ValueError
+        If ``n_rows`` is less than 1.
+    """
+    if n_rows < 1:
+        raise ValueError(
+            "The number of crop rows must be greater than or equal to 1."
+        )
+
+    boundaries = np.linspace(
+        y_start,
+        y_end,
+        n_rows + 1,
+    )
+
+    return np.round(boundaries).astype(int)
 
 def extract_row_images(
     image: np.ndarray,

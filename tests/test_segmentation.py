@@ -152,6 +152,91 @@ def test_detect_crop_rows_different_peak_heights():
         [3, 10, 17],
     )
 
+def test_compute_row_boundaries_from_peaks():
+    row_positions = np.array([100, 200, 300])
+
+    boundaries = compute_row_boundaries_from_peaks(
+        row_positions=row_positions,
+        image_height=400,
+    )
+
+    np.testing.assert_array_equal(
+        boundaries,
+        [50, 150, 250, 350],
+    )  
+
+def test_compute_row_boundaries_from_peaks_single_row():
+    row_positions = np.array([200])
+
+    boundaries = compute_row_boundaries_from_peaks(
+        row_positions=row_positions,
+        image_height=400,
+    )
+
+    np.testing.assert_array_equal(
+        boundaries,
+        [0, 400],
+    )  
+
+def test_compute_row_boundaries_from_peaks_no_rows():
+    row_positions = np.array([], dtype=int)
+
+    boundaries = compute_row_boundaries_from_peaks(
+        row_positions=row_positions,
+        image_height=400,
+    )
+
+    np.testing.assert_array_equal(
+        boundaries,
+        np.array([]),
+    )
+
+def test_compute_row_boundaries_from_plot():
+    boundaries = compute_row_boundaries_from_plot(
+        y_start=100,
+        y_end=400,
+        n_rows=3,
+    )
+
+    np.testing.assert_array_equal(
+        boundaries,
+        [100, 200, 300, 400],
+    )
+
+def test_compute_row_boundaries_from_plot_single_row():
+    boundaries = compute_row_boundaries_from_plot(
+        y_start=100,
+        y_end=400,
+        n_rows=1,
+    )
+
+    np.testing.assert_array_equal(
+        boundaries,
+        [100, 400],
+    )
+
+def test_compute_row_boundaries_from_plot_invalid_n_rows():
+    with pytest.raises(
+        ValueError,
+        match="greater than or equal to 1",
+    ):
+        compute_row_boundaries_from_plot(
+            y_start=100,
+            y_end=400,
+            n_rows=0,
+        )
+
+def test_compute_row_boundaries_from_plot_with_bounds():
+    boundaries = compute_row_boundaries_from_plot(
+        y_start=37,
+        y_end=1634,
+        n_rows=7,
+    )
+
+    assert boundaries[0] == 37
+    assert boundaries[-1] == 1634
+    assert np.all(np.diff(boundaries) > 0)
+        
 def test_extract_row_images():
     image = np.zeros((100, 200, 3))
 
