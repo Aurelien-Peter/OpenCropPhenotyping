@@ -718,3 +718,38 @@ def identify_missing_plant_candidates(
     )
 
     return plant_df
+
+def compute_vegetation_fraction(
+    row_mask: np.ndarray,
+    search_windows: list[tuple[int, int]],
+) -> list[float]:
+    """
+    Compute the fraction of vegetation pixels within each search window.
+
+    Parameters
+    ----------
+    row_mask : np.ndarray
+        Binary vegetation mask for one crop-row region.
+    search_windows : list[tuple[int, int]]
+        Search windows represented as ``(x_start, x_end)`` pixel
+        coordinates. The end coordinate is exclusive.
+
+    Returns
+    -------
+    list[float]
+        Fraction of pixels classified as vegetation in each search window.
+    """
+    vegetation_fractions = []
+
+    for start, end in search_windows:
+        window_mask = row_mask[:, start:end]
+
+        vegetation_fraction = (
+            np.sum(window_mask) / window_mask.size
+        )
+
+        vegetation_fractions.append(
+            vegetation_fraction
+        )
+
+    return vegetation_fractions
