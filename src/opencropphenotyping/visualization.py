@@ -300,19 +300,23 @@ def plot_exg_with_detected_plants(
 
 def plot_rgb_with_annotations(
     image: np.ndarray,
-    annotations: list[dict],
+    annotations: list[dict] | np.ndarray,
     title: str = "RGB image with COCO annotations",
 ) -> None:
     """
-    Display an RGB image with COCO annotation bounding boxes centers.
+    Display an RGB image with COCO annotation centers.
 
     Parameters
     ----------
     image : np.ndarray
         RGB image to display.
-    annotations : list[dict]
-        COCO annotations containing bounding boxes centers in the format
-        ``[center_x, center_y]``.
+    annotations : list[dict] or np.ndarray
+        COCO annotations. Two formats are supported:
+
+        - list of dictionaries containing ``center_x`` and ``center_y``;
+        - NumPy array with shape ``(n_annotations, 2)`` containing
+          ``x`` and ``y`` coordinates.
+
     title : str, default="RGB image with COCO annotations"
         Plot title.
     """
@@ -320,8 +324,23 @@ def plot_rgb_with_annotations(
 
     ax.imshow(image)
 
-    for annotation in annotations:
+    if isinstance(annotations, np.ndarray):
+
+        if annotations.ndim != 2 or annotations.shape[1] != 2:
+            raise ValueError(
+                "Annotation array must have shape (n_annotations, 2)."
+            )
+
         ax.scatter(
+            annotations[:, 0],
+            annotations[:, 1],
+            s=20,
+        )
+
+    else:
+
+        for annotation in annotations:
+            ax.scatter(
                 annotation["center_x"],
                 annotation["center_y"],
                 s=20,
@@ -331,6 +350,101 @@ def plot_rgb_with_annotations(
         f"{title} — {len(annotations)} plants"
     )
 
+    ax.axis("off")
+
+    plt.show()
+
+def plot_rgb_with_annotations_and_detected_plants(
+    image: np.ndarray,
+    plant_df: pd.DataFrame,
+    annotations: list[dict] | np.ndarray,
+    title: str = "RGB image with COCO annotations and detected plants",
+) -> None:
+    """
+    Display an RGB image with COCO annotation centers and detected plant positions.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        RGB image to display.
+    plant_df : pd.DataFrame
+        Plant detection results containing ``centroid_x``,
+    annotations : list[dict] or np.ndarray
+        COCO annotations. Two formats are supported:
+
+        - list of dictionaries containing ``center_x`` and ``center_y``;
+        - NumPy array with shape ``(n_annotations, 2)`` containing
+          ``x`` and ``y`` coordinates.
+
+    title : str, default="RGB image with COCO annotations"
+        Plot title.
+    """
+    fig, ax = plt.subplots(figsize=(16, 8))
+
+    ax.imshow(image)
+
+    if isinstance(annotations, np.ndarray):
+
+        if annotations.ndim != 2 or annotations.shape[1] != 2:
+            raise ValueError(
+                "Annotation array must have shape (n_annotations, 2)."
+            )
+
+        ax.scatter(
+            annotations[:, 0],
+            annotations[:, 1],
+            s=20,
+            color="blue",
+            label="COCO annotations",
+        )
+
+    else:
+
+        for annotation in annotations:
+            ax.scatter(
+                annotation["center_x"],
+                annotation["center_y"],
+                s=20,
+                color="blue",
+                alpha=0.5,
+                label="COCO annotations" if i == 0 else None,
+            )
+
+    detected = plant_df[
+        ~plant_df["missing_candidate"]
+    ].dropna(
+        subset=["centroid_x", "centroid_y"]
+    )
+
+    ax.scatter(
+        detected["centroid_x"],
+        detected["centroid_y"],
+        s=30,
+        alpha=0.7,
+        label="Detected plants",
+        color="red",
+    )
+
+    missing = plant_df[
+        plant_df["missing_candidate"]
+    ].dropna(
+        subset=["expected_x", "centroid_y"]
+    )   
+
+    ax.scatter(
+        missing["expected_x"],
+        missing["centroid_y"],
+        s=40,
+        marker="x",
+        alpha=0.8,
+        color="red",
+        label="Missing candidates",
+    )
+    
+    ax.set_title(
+        f"{title} — {len(annotations)} annotated plants"
+    )
+    ax.legend()
     ax.axis("off")
 
     plt.show()
