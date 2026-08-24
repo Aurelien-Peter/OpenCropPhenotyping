@@ -1,9 +1,15 @@
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+from pathlib import Path
+from PIL import Image
+import rasterio
+from rasterio.features import rasterize
 from scipy.ndimage import rotate
 from scipy.signal import find_peaks, savgol_filter
 
 from opencropphenotyping.indices import compute_exg
+from opencropphenotyping.io import read_rgb_image
 
 def threshold_vegetation_index(
     exg: np.ndarray,
@@ -753,3 +759,280 @@ def compute_vegetation_fraction(
         )
 
     return vegetation_fractions
+
+def detect_plants(
+        image_path: Path,
+        geotiff_path: Path,
+        geopackage_path: Path,
+        best_angle: float|None = None,
+        export_all: bool = False,
+        threshold: float = 25,
+):
+
+    plots = gpd.read_file(
+        geopackage_path,
+    )
+
+    plot = plots.iloc[0]
+
+    image_name = plot["image_name"]
+    n_plants = plot["n_plants"]
+    n_rows = plot["n_rows"]
+    geometry = plot["geometry"]
+
+    print(f"\nProcessing: {image_name}")
+
+    # Read image and compute ExG
+    image_array = np.array(Image.open(image_path))
+
+    exg = compute_exg(
+        read_rgb_image(image_path)
+    )
+
+    vegetation_mask = threshold_vegetation_index(
+        exg,
+        threshold=threshold,
+    )
+
+    # Estimate crop-row orientation
+    if(best_angle is None):
+        best_angle = estimate_row_orientation(vegetation_mask=vegetation_mask, 
+                                                angles=np.array(np.round(np.arange(-90, 90, 1),1)))
+    print(best_angle)
+
+    # Rotate image and ExG
+    rotated_img = rotate(
+        image_array,
+        angle=best_angle,
+        reshape=True,
+        order=1,
+    )
+
+    rotated_exg = rotate(
+        exg,
+        angle=best_angle,
+        reshape=True,
+        order=1,
+    )
+
+    # Rotate plot geometry
+    with rasterio.open(geotiff_path) as src:
+        plot_mask = rasterize(
+            [(geometry, 1)],
+            out_shape=(src.height, src.width),
+            transform=src.transform,
+            fill=0,
+            dtype=np.uint8,
+        )
+
+    rotated_plot_mask = rotate(
+        plot_mask,
+        angle=best_angle,
+        reshape=True,
+        order=0,
+    )
+
+    # Get rotated plot coordinates
+    plot_pixels_y, plot_pixels_x = np.where(
+        rotated_plot_mask > 0
+    )
+
+    x_start = int(plot_pixels_x.min())
+    x_end = int(plot_pixels_x.max())
+    y_start = int(plot_pixels_y.min())
+    y_end = int(plot_pixels_y.max())
+
+    # Vegetation mask in rotated coordinates
+    vegetation_mask = threshold_vegetation_index(
+        rotated_exg,
+        threshold,
+    )
+
+    # Detect crop rows
+    row_profile = compute_row_profile(
+        vegetation_mask
+    )
+
+    peaks = detect_crop_rows(
+        row_profile
+    )
+
+    # Compute row boundaries
+    boundaries = compute_row_boundaries_from_plot(
+        y_start=y_start,
+        y_end=y_end,
+        n_rows=n_rows,
+    )
+
+    # Extract and segment crop rows
+    row_images = extract_row_images(
+        image=rotated_img,
+        boundaries=boundaries,
+    )
+
+    row_masks = segment_row_images(
+        row_images=row_images,
+        threshold=threshold,
+    )
+
+    row_detections = []
+
+    for i, row_mask in enumerate(row_masks):
+
+        row_y_start = int(boundaries[i])
+
+        plant_positions = estimate_plant_positions_from_plot(
+            x_start=x_start,
+            x_end=x_end,
+            n_plants=n_plants,
+        )
+
+        search_windows = define_plant_search_windows(
+            plant_positions=plant_positions,
+            image_width=row_mask.shape[1],
+        )
+
+        vegetation_pixel_counts = count_vegetation_pixels(
+            row_mask=row_mask,
+            search_windows=search_windows,
+        )
+
+        vegetation_fractions = compute_vegetation_fraction(
+            row_mask=row_mask,
+            search_windows=search_windows,
+        )
+
+        vegetation_centroids = compute_vegetation_centroids(
+            row_mask=row_mask,
+            search_windows=search_windows,
+            row_y_start=row_y_start,
+        )
+
+        plant_df = build_plant_dataframe(
+            plant_positions=plant_positions,
+            vegetation_pixel_counts=vegetation_pixel_counts,
+            vegetation_centroids=vegetation_centroids,
+        )
+
+        # Identify potential missing plants
+        plant_df = identify_missing_plant_candidates(
+            plant_df
+        )
+
+        plant_df["x_start"] = [
+            start for start, _ in search_windows
+        ]
+
+        plant_df["x_end"] = [
+            end for _, end in search_windows
+        ]
+
+        plant_df["vegetation_fraction"] = vegetation_fractions
+        plant_df["row"] = i + 1
+
+        row_detections.append(plant_df)
+
+    # Combine all rows
+    plants_df = pd.concat(
+        row_detections,
+        ignore_index=True,
+    )
+
+    # Keep detected plants
+    detected_plants = plants_df[
+        ~plants_df["missing_candidate"]
+    ].dropna(
+        subset=["centroid_x", "centroid_y"]
+    )
+    
+    print(
+        f"Rows detected: {len(peaks)}"
+        f" | Expected rows: {n_rows}"
+        f" | Planting positions: {n_plants * n_rows}"
+        f" | Plants detected: {len(detected_plants)}"
+    )
+
+    if(export_all):
+        return rotated_img, rotated_exg, vegetation_mask, row_profile, peaks, boundaries, row_images, row_masks, row_detections, plants_df
+    else:
+        return None, None, None, None, None, None, plants_df
+
+def define_plant_segments(
+    x_start: int,
+    x_end: int,
+    n_segments: int,
+) -> list[tuple[float, float]]:
+    """
+    Define equally spaced segments along a crop row.
+
+    Parameters
+    ----------
+    x_start : int
+        Starting x-coordinate of the row.
+    x_end : int
+        Ending x-coordinate of the row.
+    n_segments : int
+        Number of segments.
+
+    Returns
+    -------
+    list[tuple[float, float]]
+        Segment boundaries represented as ``(x_start, x_end)``.
+    """
+    if n_segments < 1:
+        raise ValueError(
+            "The number of segments must be greater than or equal to 1."
+        )
+
+    edges = np.linspace(
+        x_start,
+        x_end,
+        n_segments + 1,
+    )
+
+    return [
+        (start, end)
+        for start, end in zip(
+            edges[:-1],
+            edges[1:],
+        )
+    ]
+
+def transform_original_points_to_rotated(
+    points: np.ndarray,
+    angle: float,
+    original_shape: tuple[int, int],
+    rotated_shape: tuple[int, int],
+) -> np.ndarray:
+    """
+    Transform points from the original image coordinate system
+    to the rotated image coordinate system.
+    """
+    original_height, original_width = original_shape
+    rotated_height, rotated_width = rotated_shape
+
+    original_center = np.array([
+        (original_width - 1) / 2,
+        (original_height - 1) / 2,
+    ])
+
+    rotated_center = np.array([
+        (rotated_width - 1) / 2,
+        (rotated_height - 1) / 2,
+    ])
+
+    shifted_points = points - original_center
+
+    theta = np.deg2rad(angle)
+
+    rotation_matrix = np.array([
+        [np.cos(theta), np.sin(theta)],
+        [-np.sin(theta), np.cos(theta)],
+    ])
+
+    rotated_points = (
+        shifted_points @ rotation_matrix.T
+        + rotated_center
+    )
+
+    return rotated_points
