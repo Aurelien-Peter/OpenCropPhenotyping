@@ -1,5 +1,6 @@
 import numpy as np
 from opencropphenotyping.segmentation import *
+from opencropphenotyping.evaluation import transform_original_points_to_rotated
 from scipy.ndimage import rotate
 from shapely.geometry import box
 import pytest
@@ -1330,6 +1331,7 @@ def test_detect_plants(toy_dataset, monkeypatch):
         row_y_start,
         plant_positions,
         row_number,
+        vegetation_fraction_threshold,
     ):
         result = plant_df_row.copy()
         result["row"] = row_number

@@ -1028,71 +1028,6 @@ def define_plant_segments(
         )
     ]
 
-def transform_original_points_to_rotated(
-    points: np.ndarray,
-    angle: float,
-    original_shape: tuple[int, int],
-    rotated_shape: tuple[int, int],
-) -> np.ndarray:
-    """
-    Transform points from the original image coordinates to the
-    rotated image coordinates.
-
-    The transformation accounts for the different image centers
-    before and after rotation. Coordinates are expected in
-    ``(x, y)`` order, while image shapes are given in
-    ``(height, width)`` order.
-
-    Parameters
-    ----------
-    points : np.ndarray
-        Array of point coordinates with shape ``(n_points, 2)``.
-        Each point is represented as ``(x, y)``.
-    angle : float
-        Rotation angle in degrees. The rotation convention follows
-        the coordinate transformation used for the image rotation.
-    original_shape : tuple[int, int]
-        Shape of the original image represented as
-        ``(height, width)``.
-    rotated_shape : tuple[int, int]
-        Shape of the rotated image represented as
-        ``(height, width)``.
-
-    Returns
-    -------
-    np.ndarray
-        Transformed point coordinates with shape ``(n_points, 2)``.
-        Coordinates are represented as ``(x, y)``.
-    """
-    original_height, original_width = original_shape
-    rotated_height, rotated_width = rotated_shape
-
-    original_center = np.array([
-        (original_width - 1) / 2,
-        (original_height - 1) / 2,
-    ])
-
-    rotated_center = np.array([
-        (rotated_width - 1) / 2,
-        (rotated_height - 1) / 2,
-    ])
-
-    shifted_points = points - original_center
-
-    theta = np.deg2rad(angle)
-
-    rotation_matrix = np.array([
-        [np.cos(theta), np.sin(theta)],
-        [-np.sin(theta), np.cos(theta)],
-    ])
-
-    rotated_points = (
-        shifted_points @ rotation_matrix.T
-        + rotated_center
-    )
-
-    return rotated_points
-
 def prepare_rotated_data(
     image_path: Path,
     geotiff_path: Path,
@@ -1264,12 +1199,6 @@ def detect_plants_in_row(
         vegetation_centroids=vegetation_centroids,
     )
 
-    # Identify potential missing plants
-    plant_df = identify_missing_plant_candidates_from_vegetation_fraction(
-        plant_df,
-        vegetation_fraction_threshold=vegetation_fraction_threshold,
-    )
-
     plant_df["x_start"] = [
         start for start, _ in search_windows
     ]
@@ -1279,6 +1208,13 @@ def detect_plants_in_row(
     ]
 
     plant_df["vegetation_fraction"] = vegetation_fractions
+
+    # Identify potential missing plants
+    plant_df = identify_missing_plant_candidates_from_vegetation_fraction(
+        plant_df,
+        vegetation_fraction_threshold=vegetation_fraction_threshold,
+    )
+
     plant_df["row"] = row_number
 
     return plant_df
