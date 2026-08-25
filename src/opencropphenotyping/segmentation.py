@@ -7,6 +7,7 @@ import rasterio
 from rasterio.features import rasterize
 from scipy.ndimage import rotate
 from scipy.signal import find_peaks, savgol_filter
+from shapely.geometry.base import BaseGeometry
 
 from opencropphenotyping.indices import compute_exg
 from opencropphenotyping.io import read_rgb_image
@@ -572,7 +573,7 @@ def compute_vegetation_centroids(
     -------
     list[tuple[float, float] | None]
         Vegetation centroid ``(x, y)`` for each search window, expressed
-        in the coordinate system of the full rotated image..
+        in the coordinate system of the full rotated image.
         ``None`` is returned when no vegetation pixels are present
         in a window.
     """
@@ -744,11 +745,21 @@ def compute_vegetation_fraction(
     -------
     list[float]
         Fraction of pixels classified as vegetation in each search window.
+    
+    Raises
+    ------
+    ValueError
+        If a search window is empty.
     """
     vegetation_fractions = []
 
     for start, end in search_windows:
         window_mask = row_mask[:, start:end]
+
+        if window_mask.size == 0:
+            raise ValueError(
+                f"Search window ({start}, {end}) is empty."
+            )
 
         vegetation_fraction = (
             np.sum(window_mask) / window_mask.size
@@ -768,93 +779,89 @@ def detect_plants(
         export_all: bool = False,
         threshold: float = 25,
 ):
+    """
+    Detect expected plants within crop rows of an RGB image.
 
-    plots = gpd.read_file(
-        geopackage_path,
-    )
+    The detection workflow uses plot metadata from a GeoPackage,
+    estimates or uses a predefined crop-row orientation, rotates
+    the image and plot geometry, extracts crop rows, and analyses
+    expected plant positions using vegetation-based measurements.
 
-    plot = plots.iloc[0]
+    Crop-row detection based on the vegetation profile is currently
+    used for diagnostic purposes only. The detected peaks are not
+    used to define the crop-row boundaries.
 
-    image_name = plot["image_name"]
-    n_plants = plot["n_plants"]
-    n_rows = plot["n_rows"]
-    geometry = plot["geometry"]
+    Parameters
+    ----------
+    image_path : Path
+        Path to the RGB image containing the crop plot.
+    geotiff_path : Path
+        Path to the GeoTIFF associated with the image and used to
+        rasterize the plot geometry.
+    geopackage_path : Path
+        Path to the GeoPackage containing plot metadata and geometry.
+    best_angle : float or None, default=None
+        Rotation angle in degrees. If ``None``, the crop-row
+        orientation is estimated automatically.
+    export_all : bool, default=False
+        If ``True``, return intermediate processing results in
+        addition to the final plant DataFrame. If ``False``, only
+        the final plant DataFrame is returned and the intermediate
+        outputs are set to ``None``.
+    threshold : float, default=25
+        Threshold applied to the ExG vegetation index for vegetation
+        segmentation.
 
+    Returns
+    -------
+    tuple
+        If ``export_all`` is ``True``, returns:
+
+        ``(rotated_img, rotated_exg, vegetation_mask, row_profile,
+        peaks, boundaries, row_images, row_masks, row_detections,
+        plants_df)``.
+
+        If ``export_all`` is ``False``, returns:
+
+        ``(None, None, None, None, None, None, plants_df)``.
+
+        ``plants_df`` contains the plant candidates detected across
+        all crop rows.
+
+    Notes
+    -----
+    The number of crop-row peaks detected from the vegetation
+    profile is currently used as an informational diagnostic.
+    It may be used in a future version as a warning mechanism or
+    as an alternative method for defining crop-row boundaries.
+    """
+    # Get metadata from geopackage file
+    image_name, n_plants, n_rows, geometry=load_plot_metadata(geopackage_path)
     print(f"\nProcessing: {image_name}")
 
-    # Read image and compute ExG
-    image_array = np.array(Image.open(image_path))
-
-    exg = compute_exg(
-        read_rgb_image(image_path)
-    )
-
-    vegetation_mask = threshold_vegetation_index(
-        exg,
-        threshold=threshold,
-    )
-
-    # Estimate crop-row orientation
-    if(best_angle is None):
-        best_angle = estimate_row_orientation(vegetation_mask=vegetation_mask, 
-                                                angles=np.array(np.round(np.arange(-90, 90, 1),1)))
-    print(best_angle)
-
-    # Rotate image and ExG
-    rotated_img = rotate(
-        image_array,
+    # Get rotation angle
+    best_angle=compute_rotation_angle(
+        image_path=image_path,
         angle=best_angle,
-        reshape=True,
-        order=1,
+        threshold=threshold
     )
 
-    rotated_exg = rotate(
-        exg,
-        angle=best_angle,
-        reshape=True,
-        order=1,
-    )
-
-    # Rotate plot geometry
-    with rasterio.open(geotiff_path) as src:
-        plot_mask = rasterize(
-            [(geometry, 1)],
-            out_shape=(src.height, src.width),
-            transform=src.transform,
-            fill=0,
-            dtype=np.uint8,
-        )
-
-    rotated_plot_mask = rotate(
-        plot_mask,
-        angle=best_angle,
-        reshape=True,
-        order=0,
+    # Get rotated image, exg and vegetation mask
+    rotated_img, rotated_exg, rotated_plot_mask = prepare_rotated_data(
+        image_path=image_path,
+        geotiff_path=geotiff_path,
+        geometry=geometry,
+        angle=best_angle
     )
 
     # Get rotated plot coordinates
-    plot_pixels_y, plot_pixels_x = np.where(
-        rotated_plot_mask > 0
-    )
+    x_start, x_end, y_start, y_end = get_mask_bounds(mask=rotated_plot_mask)
 
-    x_start = int(plot_pixels_x.min())
-    x_end = int(plot_pixels_x.max())
-    y_start = int(plot_pixels_y.min())
-    y_end = int(plot_pixels_y.max())
-
-    # Vegetation mask in rotated coordinates
-    vegetation_mask = threshold_vegetation_index(
-        rotated_exg,
-        threshold,
-    )
-
-    # Detect crop rows
-    row_profile = compute_row_profile(
-        vegetation_mask
-    )
-
-    peaks = detect_crop_rows(
-        row_profile
+    # Compute plant positions from x limits and number of plants
+    plant_positions = estimate_plant_positions_from_plot(
+        x_start=x_start,
+        x_end=x_end,
+        n_plants=n_plants,
     )
 
     # Compute row boundaries
@@ -879,58 +886,14 @@ def detect_plants(
 
     for i, row_mask in enumerate(row_masks):
 
-        row_y_start = int(boundaries[i])
-
-        plant_positions = estimate_plant_positions_from_plot(
-            x_start=x_start,
-            x_end=x_end,
-            n_plants=n_plants,
-        )
-
-        search_windows = define_plant_search_windows(
+        row_detection = detect_plants_in_row(
+            row_mask=row_mask,
+            row_y_start=int(boundaries[i]),
             plant_positions=plant_positions,
-            image_width=row_mask.shape[1],
+            row_number=i + 1,
         )
 
-        vegetation_pixel_counts = count_vegetation_pixels(
-            row_mask=row_mask,
-            search_windows=search_windows,
-        )
-
-        vegetation_fractions = compute_vegetation_fraction(
-            row_mask=row_mask,
-            search_windows=search_windows,
-        )
-
-        vegetation_centroids = compute_vegetation_centroids(
-            row_mask=row_mask,
-            search_windows=search_windows,
-            row_y_start=row_y_start,
-        )
-
-        plant_df = build_plant_dataframe(
-            plant_positions=plant_positions,
-            vegetation_pixel_counts=vegetation_pixel_counts,
-            vegetation_centroids=vegetation_centroids,
-        )
-
-        # Identify potential missing plants
-        plant_df = identify_missing_plant_candidates(
-            plant_df
-        )
-
-        plant_df["x_start"] = [
-            start for start, _ in search_windows
-        ]
-
-        plant_df["x_end"] = [
-            end for _, end in search_windows
-        ]
-
-        plant_df["vegetation_fraction"] = vegetation_fractions
-        plant_df["row"] = i + 1
-
-        row_detections.append(plant_df)
+        row_detections.append(row_detection)
 
     # Combine all rows
     plants_df = pd.concat(
@@ -943,6 +906,20 @@ def detect_plants(
         ~plants_df["missing_candidate"]
     ].dropna(
         subset=["centroid_x", "centroid_y"]
+    )
+
+        # Detect crop rows (informational only)
+    vegetation_mask = threshold_vegetation_index(
+        rotated_exg,
+        threshold,
+    )
+
+    row_profile = compute_row_profile(
+        vegetation_mask
+    )
+
+    peaks = detect_crop_rows(
+        row_profile
     )
     
     print(
@@ -978,12 +955,23 @@ def define_plant_segments(
     -------
     list[tuple[float, float]]
         Segment boundaries represented as ``(x_start, x_end)``.
+        
+    Raises
+    ------
+    ValueError
+        If ``n_segments`` is less than 1 or if ``x_end`` is less
+        than or equal to ``x_start``.
     """
     if n_segments < 1:
         raise ValueError(
             "The number of segments must be greater than or equal to 1."
         )
 
+    if x_end <= x_start:
+        raise ValueError(
+            "x_end must be greater than x_start."
+        )
+    
     edges = np.linspace(
         x_start,
         x_end,
@@ -1005,8 +993,34 @@ def transform_original_points_to_rotated(
     rotated_shape: tuple[int, int],
 ) -> np.ndarray:
     """
-    Transform points from the original image coordinate system
-    to the rotated image coordinate system.
+    Transform points from the original image coordinates to the
+    rotated image coordinates.
+
+    The transformation accounts for the different image centers
+    before and after rotation. Coordinates are expected in
+    ``(x, y)`` order, while image shapes are given in
+    ``(height, width)`` order.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Array of point coordinates with shape ``(n_points, 2)``.
+        Each point is represented as ``(x, y)``.
+    angle : float
+        Rotation angle in degrees. The rotation convention follows
+        the coordinate transformation used for the image rotation.
+    original_shape : tuple[int, int]
+        Shape of the original image represented as
+        ``(height, width)``.
+    rotated_shape : tuple[int, int]
+        Shape of the rotated image represented as
+        ``(height, width)``.
+
+    Returns
+    -------
+    np.ndarray
+        Transformed point coordinates with shape ``(n_points, 2)``.
+        Coordinates are represented as ``(x, y)``.
     """
     original_height, original_width = original_shape
     rotated_height, rotated_width = rotated_shape
@@ -1036,3 +1050,265 @@ def transform_original_points_to_rotated(
     )
 
     return rotated_points
+
+def prepare_rotated_data(
+    image_path: Path,
+    geotiff_path: Path,
+    geometry: np.ndarray,
+    angle: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Prepare image data and plot mask in the rotated coordinate system.
+
+    The RGB image, ExG image, and plot mask are rotated by the
+    specified angle. The plot geometry is first rasterized using
+    the GeoTIFF spatial reference before being rotated.
+
+    Parameters
+    ----------
+    image_path : Path
+        Path to the RGB image.
+    geotiff_path : Path
+        Path to the GeoTIFF used to rasterize the plot geometry.
+    geometry : shapely geometry
+        Plot geometry to rasterize.
+    angle : float
+        Rotation angle in degrees.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray]
+        Rotated RGB image, rotated ExG image, and rotated plot mask.
+    """
+       
+    # Read image and compute ExG
+    image_array = np.array(Image.open(image_path))
+
+    exg = compute_exg(
+        read_rgb_image(image_path)
+    )
+    
+    # Rotate image and ExG
+    rotated_img = rotate(
+        image_array,
+        angle=angle,
+        reshape=True,
+        order=1,
+    )
+
+    rotated_exg = rotate(
+        exg,
+        angle=angle,
+        reshape=True,
+        order=1,
+    )
+
+    # Rotate plot geometry
+    with rasterio.open(geotiff_path) as src:
+        plot_mask = rasterize(
+            [(geometry, 1)],
+            out_shape=(src.height, src.width),
+            transform=src.transform,
+            fill=0,
+            dtype=np.uint8,
+        )
+
+    rotated_plot_mask = rotate(
+        plot_mask,
+        angle=angle,
+        reshape=True,
+        order=0,
+    )
+    return rotated_img, rotated_exg, rotated_plot_mask
+
+def get_mask_bounds(
+    mask: np.ndarray,
+) -> tuple[int, int, int, int]:
+    """
+    Return the bounding coordinates of non-zero pixels.
+
+    Parameters
+    ----------
+    mask : np.ndarray
+        Binary or integer mask. Pixels greater than zero are
+        considered part of the region of interest.
+
+    Returns
+    -------
+    tuple[int, int, int, int]
+        Bounding coordinates represented as
+        ``(x_start, x_end, y_start, y_end)``.
+        The returned end coordinates correspond to the last
+        non-zero pixel and are therefore inclusive.
+
+    Raises
+    ------
+    ValueError
+        If the mask does not contain any positive pixel.
+    """
+    y_pixels, x_pixels = np.where(mask > 0)
+
+    if len(x_pixels) == 0:
+        raise ValueError(
+            "Mask does not contain any positive pixels."
+        )
+
+    return (
+        int(x_pixels.min()),
+        int(x_pixels.max()),
+        int(y_pixels.min()),
+        int(y_pixels.max()),
+    )
+
+def detect_plants_in_row(
+    row_mask: np.ndarray,
+    row_y_start: int,
+    plant_positions: np.ndarray,
+    row_number: int,
+) -> pd.DataFrame:
+    """
+    Detect plant candidates within a single crop row.
+
+    The function defines a search window around each expected
+    plant position, computes vegetation statistics and centroids,
+    builds the corresponding plant DataFrame, and identifies
+    potential missing plants.
+
+    Parameters
+    ----------
+    row_mask : np.ndarray
+        Binary vegetation mask for the crop row.
+    row_y_start : int
+        Y-coordinate of the beginning of the crop row in the
+        rotated image.
+    plant_positions : np.ndarray
+        Expected plant positions along the crop row.
+    row_number : int
+        Row identifier assigned to the detected plants.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing one row per expected plant, with
+        vegetation statistics, search-window coordinates,
+        centroid coordinates, missing-plant status, and row number.
+    """
+
+    search_windows = define_plant_search_windows(
+        plant_positions=plant_positions,
+        image_width=row_mask.shape[1],
+    )
+
+    vegetation_pixel_counts = count_vegetation_pixels(
+        row_mask=row_mask,
+        search_windows=search_windows,
+    )
+
+    vegetation_fractions = compute_vegetation_fraction(
+        row_mask=row_mask,
+        search_windows=search_windows,
+    )
+
+    vegetation_centroids = compute_vegetation_centroids(
+        row_mask=row_mask,
+        search_windows=search_windows,
+        row_y_start=row_y_start,
+    )
+
+    plant_df = build_plant_dataframe(
+        plant_positions=plant_positions,
+        vegetation_pixel_counts=vegetation_pixel_counts,
+        vegetation_centroids=vegetation_centroids,
+    )
+
+    # Identify potential missing plants
+    plant_df = identify_missing_plant_candidates(
+        plant_df
+    )
+
+    plant_df["x_start"] = [
+        start for start, _ in search_windows
+    ]
+
+    plant_df["x_end"] = [
+        end for _, end in search_windows
+    ]
+
+    plant_df["vegetation_fraction"] = vegetation_fractions
+    plant_df["row"] = row_number
+
+    return plant_df
+
+def load_plot_metadata(
+        geopackage_path: Path
+    )-> tuple[str, int, int, BaseGeometry]:
+    """
+    Load metadata for the first plot in a GeoPackage.
+
+    Parameters
+    ----------
+    geopackage_path : Path
+        Path to the GeoPackage containing plot metadata.
+
+    Returns
+    -------
+    tuple[str, int, int, BaseGeometry]
+        Tuple containing the image name, expected number of plants
+        per row, expected number of rows, and plot geometry.
+    """
+
+    plots = gpd.read_file(
+        geopackage_path,
+    )
+
+    plot = plots.iloc[0]
+
+    image_name = plot["image_name"]
+    n_plants = plot["n_plants"]
+    n_rows = plot["n_rows"]
+    geometry = plot["geometry"]
+    return image_name, n_plants, n_rows, geometry
+
+def compute_rotation_angle(
+        image_path: Path,
+        threshold: float,
+        angle: float|None,
+    )-> float:
+    """
+    Determine the crop-row rotation angle.
+
+    If an angle is provided, it is returned directly. Otherwise,
+    the function computes the Excess Green (ExG) vegetation index,
+    thresholds it, and estimates the crop-row orientation.
+
+    Parameters
+    ----------
+    image_path : Path
+        Path to the RGB image.
+    threshold : float
+        Vegetation threshold used to create the binary mask.
+    angle : float or None
+        Predefined rotation angle. If ``None``, the angle is
+        estimated automatically.
+
+    Returns
+    -------
+    float
+        Rotation angle in degrees.
+    """
+    
+    # Estimate crop-row orientation
+    if(angle is None):
+        exg = compute_exg(
+            read_rgb_image(image_path)
+        )
+
+        vegetation_mask = threshold_vegetation_index(
+            exg,
+            threshold=threshold,
+        )
+
+        angle = estimate_row_orientation(vegetation_mask=vegetation_mask, 
+                                                angles=np.array(np.round(np.arange(-90, 90, 1),1)))
+        
+    return(angle)
