@@ -670,7 +670,7 @@ def build_plant_dataframe(
 
     return pd.DataFrame(plant_data)
 
-def identify_missing_plant_candidates(
+def identify_missing_plant_candidates_from_veg_threshold_and_centroid(
     plant_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
@@ -771,6 +771,46 @@ def compute_vegetation_fraction(
 
     return vegetation_fractions
 
+def identify_missing_plant_candidates_from_vegetation_fraction(
+    plant_df: pd.DataFrame,
+    vegetation_fraction_threshold: float = 0.04
+) -> pd.DataFrame:
+    """
+    Identify potential missing plants from vegetation fraction.
+
+    A plant is flagged as a missing candidate when the fraction of
+    vegetation pixels within its search window is below the specified
+    threshold.
+
+    Parameters
+    ----------
+    plant_df : pd.DataFrame
+        Plant characterization table containing a
+        ``vegetation_fraction`` column.
+    vegetation_fraction_threshold : float, default=0.04
+        Minimum vegetation fraction required for a plant not to be
+        considered a missing candidate.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the input table with an additional
+        ``missing_candidate`` boolean column.
+
+    Raises
+    ------
+    KeyError
+        If ``vegetation_fraction`` is not present in ``plant_df``.
+    """
+    plant_df = plant_df.copy()
+
+    plant_df["missing_candidate"] = (
+        plant_df["vegetation_fraction"]
+        < vegetation_fraction_threshold
+    )
+
+    return plant_df
+
 def detect_plants(
         image_path: Path,
         geotiff_path: Path,
@@ -778,6 +818,7 @@ def detect_plants(
         best_angle: float|None = None,
         export_all: bool = False,
         threshold: float = 25,
+        vegetation_fraction_threshold: float = 0.04,
 ):
     """
     Detect expected plants within crop rows of an RGB image.
@@ -891,6 +932,7 @@ def detect_plants(
             row_y_start=int(boundaries[i]),
             plant_positions=plant_positions,
             row_number=i + 1,
+            vegetation_fraction_threshold=vegetation_fraction_threshold,
         )
 
         row_detections.append(row_detection)
@@ -1165,6 +1207,7 @@ def detect_plants_in_row(
     row_y_start: int,
     plant_positions: np.ndarray,
     row_number: int,
+    vegetation_fraction_threshold: float = 0.04,
 ) -> pd.DataFrame:
     """
     Detect plant candidates within a single crop row.
@@ -1222,8 +1265,9 @@ def detect_plants_in_row(
     )
 
     # Identify potential missing plants
-    plant_df = identify_missing_plant_candidates(
-        plant_df
+    plant_df = identify_missing_plant_candidates_from_vegetation_fraction(
+        plant_df,
+        vegetation_fraction_threshold=vegetation_fraction_threshold,
     )
 
     plant_df["x_start"] = [

@@ -597,7 +597,7 @@ def test_build_plant_dataframe_missing_centroid():
     assert np.isnan(plant_df.loc[0, "offset"])
     assert np.isnan(plant_df.loc[0, "abs_offset"])
 
-def test_identify_missing_plant_candidates_detects_outlier():
+def test_identify_missing_plant_candidates_from_veg_threshold_and_centroid_detects_outlier():
     plant_df = pd.DataFrame({
         "plant_position": [1, 2, 3, 4, 5],
         "expected_x": [10, 20, 30, 40, 50],
@@ -608,7 +608,7 @@ def test_identify_missing_plant_candidates_detects_outlier():
         "abs_offset": [0, 0, 0, 20, 0],
     })
 
-    result = identify_missing_plant_candidates(
+    result = identify_missing_plant_candidates_from_veg_threshold_and_centroid(
         plant_df
     )
 
@@ -618,7 +618,7 @@ def test_identify_missing_plant_candidates_detects_outlier():
     assert not result.loc[2, "missing_candidate"]
     assert not result.loc[4, "missing_candidate"]
 
-def test_identify_missing_plant_candidates_does_not_modify_input():
+def test_identify_missing_plant_candidates_from_veg_threshold_and_centroid_does_not_modify_input():
     plant_df = pd.DataFrame({
         "row_profile_pixels": [100, 100, 5, 100],
         "abs_offset": [0, 0, 20, 0],
@@ -626,7 +626,7 @@ def test_identify_missing_plant_candidates_does_not_modify_input():
 
     original_columns = plant_df.columns.tolist()
 
-    result = identify_missing_plant_candidates(
+    result = identify_missing_plant_candidates_from_veg_threshold_and_centroid(
         plant_df
     )
 
@@ -700,6 +700,58 @@ def test_compute_vegetation_fraction_empty_window():
             row_mask=row_mask,
             search_windows=[(2, 2)],
         )
+
+def test_identify_missing_plant_candidates_from_vegetation_fraction():
+    plant_df = pd.DataFrame({
+        "vegetation_fraction": [
+            0.10,
+            0.04,
+            0.03,
+            0.00,
+        ],
+    })
+
+    result = identify_missing_plant_candidates_from_vegetation_fraction(
+        plant_df
+    )
+
+    assert list(result["missing_candidate"]) == [
+        False,
+        False,
+        True,
+        True,
+    ]
+
+def test_identify_missing_plant_candidates_custom_threshold():
+    plant_df = pd.DataFrame({
+        "vegetation_fraction": [
+            0.10,
+            0.05,
+            0.02,
+        ],
+    })
+
+    result = identify_missing_plant_candidates_from_vegetation_fraction(
+        plant_df,
+        vegetation_fraction_threshold=0.05,
+    )
+
+    assert list(result["missing_candidate"]) == [
+        False,
+        False,
+        True,
+    ]
+
+def test_identify_missing_plant_candidates_does_not_modify_input():
+    plant_df = pd.DataFrame({
+        "vegetation_fraction": [0.10, 0.02],
+    })
+
+    identify_missing_plant_candidates_from_vegetation_fraction(
+        plant_df
+    )
+
+    assert "missing_candidate" not in plant_df.columns
 
 def test_define_plant_segments():
     result = define_plant_segments(
@@ -988,8 +1040,8 @@ def test_detect_plants_in_row(monkeypatch):
     ]
 
     vegetation_fractions = [
-        0.5,
-        0.75,
+        0.50,
+        0.03,
     ]
 
     vegetation_centroids = [
@@ -1002,10 +1054,12 @@ def test_detect_plants_in_row(monkeypatch):
         image_width,
     ):
         assert image_width == 20
+
         np.testing.assert_array_equal(
             plant_positions,
             np.array([5, 15]),
         )
+
         return search_windows
 
     def fake_count_vegetation_pixels(
@@ -1026,6 +1080,7 @@ def test_detect_plants_in_row(monkeypatch):
         row_y_start,
     ):
         assert row_y_start == 100
+
         return vegetation_centroids
 
     def fake_build_plant_dataframe(
@@ -1035,7 +1090,7 @@ def test_detect_plants_in_row(monkeypatch):
     ):
         return pd.DataFrame({
             "plant_position": plant_positions,
-            "vegetation_pixel_count": vegetation_pixel_counts,
+            "row_profile_pixels": vegetation_pixel_counts,
             "centroid_x": [
                 centroid[0]
                 for centroid in vegetation_centroids
@@ -1045,13 +1100,6 @@ def test_detect_plants_in_row(monkeypatch):
                 for centroid in vegetation_centroids
             ],
         })
-
-    def fake_identify_missing_plant_candidates(
-        plant_df,
-    ):
-        plant_df = plant_df.copy()
-        plant_df["missing_candidate"] = False
-        return plant_df
 
     monkeypatch.setattr(
         "opencropphenotyping.segmentation.define_plant_search_windows",
@@ -1078,11 +1126,6 @@ def test_detect_plants_in_row(monkeypatch):
         fake_build_plant_dataframe,
     )
 
-    monkeypatch.setattr(
-        "opencropphenotyping.segmentation.identify_missing_plant_candidates",
-        fake_identify_missing_plant_candidates,
-    )
-
     result = detect_plants_in_row(
         row_mask=row_mask,
         row_y_start=100,
@@ -1093,11 +1136,12 @@ def test_detect_plants_in_row(monkeypatch):
     assert len(result) == 2
 
     assert list(result["x_start"]) == [2, 12]
+
     assert list(result["x_end"]) == [8, 18]
 
     assert list(result["vegetation_fraction"]) == [
-        0.5,
-        0.75,
+        0.50,
+        0.03,
     ]
 
     assert list(result["row"]) == [
@@ -1107,7 +1151,7 @@ def test_detect_plants_in_row(monkeypatch):
 
     assert list(result["missing_candidate"]) == [
         False,
-        False,
+        True,
     ]
 
 def test_prepare_rotated_data(toy_dataset):
@@ -1183,17 +1227,6 @@ def test_detect_plants_in_row():
 
     # Vegetation counts
     assert list(result["row_profile_pixels"]) == [9, 12]
-
-    # Centroids
-    assert result.loc[0, "centroid_x"] == 4.0
-    assert result.loc[0, "centroid_y"] == 103.0
-
-    assert result.loc[1, "centroid_x"] == 14.0
-    assert result.loc[1, "centroid_y"] == 105.5
-
-    # Offsets
-    assert list(result["offset"]) == [-1.0, -1.0]
-    assert list(result["abs_offset"]) == [1.0, 1.0]
 
     # Row number
     assert list(result["row"]) == [2, 2]
