@@ -9,6 +9,8 @@ from opencropphenotyping.evaluation import (
     match_annotations_to_plant_positions,
     transform_original_points_to_rotated,
 )
+
+
 def test_compute_confusion_matrix():
     predicted_occupied = pd.Series([
         True,

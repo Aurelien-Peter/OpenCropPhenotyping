@@ -1,8 +1,9 @@
 from pathlib import Path
-from PIL import Image
+
 import numpy as np
 import pytest
 import rasterio
+from PIL import Image
 from rasterio.transform import from_origin
 
 from opencropphenotyping.io import (
@@ -10,14 +11,14 @@ from opencropphenotyping.io import (
     find_band,
     find_granule,
     read_band,
+    read_rgb_image,
     resample_raster,
     select_bands,
+    write_georeferenced_tiff,
     write_png,
     write_raster,
-    read_rgb_image,
-    read_rgb_image,
-    write_georeferenced_tiff,
 )
+
 
 ## Create paths
 @pytest.fixture

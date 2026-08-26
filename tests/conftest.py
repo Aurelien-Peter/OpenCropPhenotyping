@@ -1,6 +1,6 @@
 from pathlib import Path
-import geopandas as gpd
 
+import geopandas as gpd
 import pytest
 
 

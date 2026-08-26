@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.figure import Figure
 import pandas as pd
+from matplotlib.figure import Figure
 
 
 def display_raster(
@@ -379,7 +379,7 @@ def plot_rgb_with_annotations_and_detected_plants(
     title : str, default="RGB image with COCO annotations"
         Plot title.
     """
-    fig, ax = plt.subplots(figsize=(16, 8))
+    _, ax = plt.subplots(figsize=(16, 8))
 
     ax.imshow(image)
 
@@ -400,7 +400,7 @@ def plot_rgb_with_annotations_and_detected_plants(
 
     else:
 
-        for annotation in annotations:
+        for i, annotation in enumerate(annotations):
             ax.scatter(
                 annotation["center_x"],
                 annotation["center_y"],

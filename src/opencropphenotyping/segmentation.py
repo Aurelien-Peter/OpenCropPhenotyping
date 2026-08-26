@@ -1,9 +1,10 @@
+from pathlib import Path
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-from pathlib import Path
-from PIL import Image
 import rasterio
+from PIL import Image
 from rasterio.features import rasterize
 from scipy.ndimage import rotate
 from scipy.signal import find_peaks, savgol_filter
@@ -11,6 +12,7 @@ from shapely.geometry.base import BaseGeometry
 
 from opencropphenotyping.indices import compute_exg
 from opencropphenotyping.io import read_rgb_image
+
 
 def threshold_vegetation_index(
     exg: np.ndarray,
@@ -972,9 +974,29 @@ def detect_plants(
     )
 
     if(export_all):
-        return rotated_img, rotated_exg, vegetation_mask, row_profile, peaks, boundaries, row_images, row_masks, row_detections, plants_df
+        return (
+            rotated_img, 
+            rotated_exg, 
+            vegetation_mask, 
+            row_profile, peaks, 
+            boundaries, 
+            row_images, 
+            row_masks, 
+            row_detections, 
+            plants_df
+        )
     else:
-        return None, None, None, None, None, None, plants_df
+        return (
+            None, 
+            None, 
+            None, 
+            None, 
+            None, 
+            None, 
+            None, 
+            None, 
+            plants_df
+        )
 
 def define_plant_segments(
     x_start: int,

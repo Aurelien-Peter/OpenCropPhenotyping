@@ -10,6 +10,7 @@ from opencropphenotyping.coco import (
     load_coco_annotations,
 )
 
+
 def test_load_coco_annotations(tmp_path):
     first_path = tmp_path / "first.json"
     second_path = tmp_path / "second.json"

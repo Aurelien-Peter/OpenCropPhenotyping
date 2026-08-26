@@ -3,13 +3,13 @@ import pytest
 
 from opencropphenotyping.indices import (
     _prepare_bands,
+    compute_exg,
     compute_gndvi,
     compute_indexes,
     compute_ndre,
     compute_ndvi,
     compute_normalized_difference_index,
     compute_savi,
-    compute_exg
 )
 
 

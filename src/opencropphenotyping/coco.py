@@ -1,7 +1,9 @@
-from pathlib import Path
 import json
-import pandas as pd
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
+
 
 def load_coco_annotations(
     json_paths: list[Path],

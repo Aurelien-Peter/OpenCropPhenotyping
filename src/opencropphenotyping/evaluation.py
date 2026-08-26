@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+
 def transform_original_points_to_rotated(
     points: np.ndarray,
     angle: float,
