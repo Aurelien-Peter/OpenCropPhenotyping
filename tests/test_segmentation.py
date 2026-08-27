@@ -1444,6 +1444,10 @@ def test_detect_plants(toy_dataset, monkeypatch):
         None,
         None,
         None,
+        None,
+        None,
+        None,
+        None,
     )
 
     plants_df = result[-1]

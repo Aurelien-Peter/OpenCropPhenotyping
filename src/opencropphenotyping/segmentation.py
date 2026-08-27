@@ -975,10 +975,12 @@ def detect_plants(
 
     if(export_all):
         return (
+            best_angle,
             rotated_img, 
             rotated_exg, 
             vegetation_mask, 
-            row_profile, peaks, 
+            row_profile, 
+            peaks, 
             boundaries, 
             row_images, 
             row_masks, 
@@ -988,9 +990,11 @@ def detect_plants(
     else:
         return (
             None, 
+            None,
             None, 
             None, 
             None, 
+            None,
             None, 
             None, 
             None, 
