@@ -3,10 +3,13 @@
 **An open-source Python framework for high-throughput crop phenotyping using drone and satellite imagery.**
 
 ## About the project
+
 OpenCropPhenotyping is an open-source project dedicated to reproducible high-throughput crop phenotyping using remote sensing data.
-The objective is to provide reproducible workflows to extract agronomic traits from UAV and Sentinel-2 imagery, from raw image preprocessing to trait extraction, statistical analysis and visualization. The first developments focus on major field crops such as maize, with the possibility of extending the framework to other crops in future releases.
+The objective is to provide reproducible workflows to extract agronomic traits from UAV and Sentinel-2 imagery, from raw image preprocessing to trait extraction, statistical analysis and visualization. 
+The project currently combines multispectral Sentinel-2 processing with classical RGB UAV image analysis. The first UAV developments focus on crop-row detection, vegetation segmentation and plant-position analysis, with the objective of progressively extending the framework toward more advanced high-throughput phenotyping workflows.
 
 ## Current Features:
+**Sentinel-2**
 - [X] Sentinel-2 imagery reading
 - [X] Sentinel-2 band selection and resampling
 - [X] NDVI computation 
@@ -23,7 +26,25 @@ The objective is to provide reproducible workflows to extract agronomic traits f
 - [X] Visualization
 - [X] Unit Tests
 - [X] Command-Line Interface (CLI)
+
+**UAV RGB**
 - [X] RGB UAV imagery reading
+- [X] RGB vegetation indices
+- [X] Vegetation segmentation
+- [X] Crop-row orientation estimation
+- [X] Crop-row detection
+- [X] Crop-row boundary detection
+- [X] Planting position estimation from plot geometry
+- [X] Vegetation based plant occupancy estimation
+- [X] Georeferenced UAV Image support
+- [X] Experimental plot metadata integration
+- [X] UAV RGB workflow demonstration
+
+**Software quality**
+- [X] Visualization utilities
+- [X] Unit tests
+- [X] Code quality checks with Ruff
+- [X] Reproducible toy datasets
 
 ## Case studies
 
@@ -32,6 +53,7 @@ The project includes reproducible case studies based on real agricultural areas 
 Current case studies:
 
 - Maize monitoring with Sentinel-2 (Occitanie)
+- UAV RGB crop-row and plant-position analysis on a toy dataset
 
 ## Roadmap
 
@@ -69,10 +91,17 @@ Current case studies:
 #### Drone imagery
 
 - RGB UAV imagery reading
-- Orthomosaic support
-- Vegetation segmentation
 - RGB vegetation indices
-- Image tiling
+- Vegetation segmentation
+- Crop-row orientation estimation
+- Crop-row detection
+- Plant-position estimation
+- Experimental plot geometry integration
+- Georeferenced UAV image support
+- UAV image tiling
+- Batch processing of large UAV images
+
+Current v0.3 development includes a classical, interpretable workflow for crop-row and plant-position analysis. Plant occupancy estimation currently relies on vegetation fraction within theoretical planting positions and is sensitive to plant development stage and image quality.
 
 ---
 
@@ -102,7 +131,8 @@ Complete crop phenotyping workflow
 
 ## For which users?
 
-This project is intended for researchers, agronomists, engineers working in remote sensing, as well as for UAV practitioners and interested students. The project is also suitable for anyone wishing to learn how to process drone or Sentinel-2 imagery using Python.
+This project is intended for researchers, agronomists, engineers working in remote sensing, as well as for UAV practitioners and interested students. 
+The project is also suitable for anyone wishing to learn how to process drone or Sentinel-2 imagery using Python.
 
 ## Installation
 
@@ -189,7 +219,14 @@ If an error occurs while processing a product, the CLI reports the error and exi
 
 ## Example workflow
 
-The following workflow illustrates the processing of Sentinel-2 multispectral imagery, from the input bands to vegetation indices, statistical analysis and crop trait extraction.
+OpenCropPhenotyping currently provides two complementary image-processing workflows:
+
+- Sentinel-2 multispectral processing
+- UAV RGB crop-row and plant-position analysis
+
+## Sentinel-2 workflow
+
+The Sentinel-2 workflow processes multispectral bands to compute vegetation indices, derive vegetation masks and estimate crop cover.
 
 ### Sentinel-2 input bands
 
@@ -297,19 +334,98 @@ results/
 
 ### RGB UAV imagery
 
-OpenCropPhenotyping supports the reading of RGB images acquired from UAV platforms.
+OpenCropPhenotyping also provides a classical RGB UAV workflow for crop-row and plant-position analysis.
 
-RGB images are loaded as three separate NumPy arrays corresponding to the red, green and blue channels:
+The workflow is designed around a combination of:
 
+- RGB image analysis
+- ExG vegetation segmentation
+- crop-row geometry
+- georeferenced raster data
+- experimental plot geometry
+- plot-level metadata
+- theoretical planting positions
+- vegetation fraction within planting positions
+
+The workflow can be demonstrated step by step or accessed through the high-level plant-detection function.
+
+#### Load UAV RGB image
+
+The workflow starts from an RGB UAV image.
+
+![UAV RGB image](docs/images/rgb.png)
+
+
+↓
+
+#### Georeferenced UAV image and experimental plot
+
+To integrate experimental plot information into the image-processing workflow, the UAV image is converted into a georeferenced GeoTIFF.
+
+The GeoTIFF stores both the RGB raster data and the spatial information required to relate image pixels to spatial coordinates.
+
+The corresponding experimental plot is stored in a GeoPackage containing the plot geometry and experimental metadata, including:
+
+- ```image_id```
+- ```n_rows```
+- ```n_plants```
+- ```geometry```
+
+The plot geometry is validated against the GeoTIFF to ensure that the experimental plot is correctly aligned with the image.
+
+The plot geometry is then rasterized and transformed using the same crop-row rotation as the UAV image. This provides the spatial boundaries used to define crop-row regions and theoretical planting positions.
+
+↓
+
+#### Vegetation segmentation
+
+RGB imagery is converted into an Excess Green (ExG) vegetation index and thresholded to produce a vegetation mask.
+
+![Exg Mask](docs/images/exg_rotated.png)
+
+
+↓
+
+#### Crop-row detection
+
+The vegetation profile is used to estimate crop-row orientation and identify crop-row positions.
+Experimental plot metadata are then used to define the expected number of crop rows and their spatial boundaries.
+
+![Crop-Row profile](docs/images/crop_row_profile.png)
+
+↓
+
+#### Plant occupancy estimation
+
+The experimental plot geometry and ```n_plants``` metadata are used to define theoretical planting positions along each crop row.
+
+Vegetation fraction within each theoretical planting position is then used as an indicator of plant occupancy.
+
+![Plant Detection](docs/images/rgb_detection.png)
+
+
+The current approach provides an interpretable classical baseline for UAV crop phenotyping. Its performance is influenced by plant development stage and the strength of the vegetation signal in the RGB imagery.
+
+#### UAV workflow demonstration
+
+A dedicated notebook demonstrates the complete workflow and the use of the package functions:
+
+notebooks/  
+└── 06_UAV RGB workflow demonstration.ipynb
+
+The notebook also contains examples of intermediate visualizations and exported figures used for project documentation.
+
+#### RGB UAV imagery
+
+RGB images are loaded as three NumPy arrays corresponding to the red, green and blue channels:
 ```python
 from opencropphenotyping.rgb import read_rgb_image
 
 red, green, blue = read_rgb_image(image_path)
 ```
-
 The three returned arrays have the same spatial dimensions as the input image.
 
-This functionality provides the foundation for future RGB-based workflows, including vegetation segmentation, RGB vegetation indices and crop trait extraction.
+This functionality provides the foundation for RGB-based vegetation segmentation, crop-row detection and plant-position analysis.
 
 ### Processing pipeline
 
@@ -376,6 +492,7 @@ Contributions are welcome. If you have ideas for improvements, bug fixes or new 
 ## Documentation
 
 Documentation will be progressively added as the project evolves.
+The repository currently provides detailed notebooks illustrating the development and application of the processing workflows.
 
 ## Version
 
