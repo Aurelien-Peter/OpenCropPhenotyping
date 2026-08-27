@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import rasterio
+from PIL import Image
 from rasterio.transform import from_origin
 
 from opencropphenotyping.io import (
@@ -10,9 +11,11 @@ from opencropphenotyping.io import (
     find_band,
     find_granule,
     read_band,
+    read_rgb_image,
     resample_raster,
     select_bands,
-    write_png,
+    write_georeferenced_tiff,
+    write_raster_as_png,
     write_raster,
 )
 
@@ -324,27 +327,27 @@ def test_write_raster_nonexistent_directory(tmp_path):
 
 
 def test_write_png(tmp_path):
-    # Test write_png function
+    # Test write_raster_as_png function
     image = np.random.rand(100, 100).astype(np.float32)
     output_path = tmp_path / "output.png"
-    write_png(image, output_path)
+    write_raster_as_png(image, output_path)
     assert output_path.exists(), "PNG file was not created."
 
 
 def test_write_png_nonexistent_directory(tmp_path):
-    # Test write_png function with a non-existent directory
+    # Test write_raster_as_png function with a non-existent directory
     image = np.random.rand(100, 100).astype(np.float32)
     output_path = tmp_path / "nonexistent_dir" / "output.png"
     with pytest.raises(FileNotFoundError):
-        write_png(image, output_path)
+        write_raster_as_png(image, output_path)
 
 
 def test_write_png_wrong_dimension(tmp_path):
-    # Test write_png function with a non-2D array
+    # Test write_raster_as_png function with a non-2D array
     image = np.random.rand(100, 100, 3).astype(np.float32)  # 3D array
     output_path = tmp_path / "output.png"
     with pytest.raises(ValueError, match="Raster image must be a 2D array."):
-        write_png(image, output_path)
+        write_raster_as_png(image, output_path)
 
 def test_resample_raster_3d(raster_profile):
     # Test resample_master function with non-2D arrays
@@ -408,3 +411,126 @@ def test_resample_raster_target_profile(raster_profile):
     assert resampled_profile["width"] == 300
     assert resampled_image.dtype == np.float32
 
+def test_read_rgb(tmp_path):
+    image_path = tmp_path / "test_rgb.png"
+
+    image = Image.new("RGB", (2, 2))
+
+    image.putdata([
+        (255, 0, 0),
+        (0, 255, 0),
+        (0, 0, 255),
+        (100, 150, 200),
+    ])
+
+    image.save(image_path)
+
+    red, green, blue = read_rgb_image(image_path)
+
+    assert red.shape == (2, 2)
+    assert green.shape == (2, 2)
+    assert blue.shape == (2, 2)
+
+    assert np.array_equal(
+        red,
+        [[255, 0],
+         [0, 100]],
+    )
+
+    assert np.array_equal(
+        green,
+        [[0, 255],
+         [0, 150]],
+    )
+
+    assert np.array_equal(
+        blue,
+        [[0, 0],
+         [255, 200]],
+    )
+
+def test_read_rgb_rejects_non_rgb(tmp_path):
+    image_path = tmp_path / "test_grayscale.png"
+
+    image = Image.new("L", (2, 2), color=128)
+    image.save(image_path)
+
+    with pytest.raises(TypeError):
+        read_rgb_image(image_path)
+
+def test_write_georeferenced_tiff(tmp_path):
+    input_path = tmp_path / "input.png"
+    output_path = tmp_path / "output.tif"
+
+    # Create a small RGB test image.
+    image = np.array(
+        [
+            [[10, 20, 30], [40, 50, 60]],
+            [[70, 80, 90], [100, 110, 120]],
+        ],
+        dtype=np.uint8,
+    )
+
+    Image.fromarray(image).save(input_path)
+
+    write_georeferenced_tiff(
+        input_path=input_path,
+        output_path=output_path,
+    )
+
+    # Check that the GeoTIFF has been created.
+    assert output_path.exists()
+
+    with rasterio.open(output_path) as src:
+        assert src.width == 2
+        assert src.height == 2
+        assert src.count == 3
+        assert src.dtypes == ("uint8", "uint8", "uint8")
+
+        assert src.crs.to_string() == "EPSG:3857"
+
+        expected_transform = from_origin(
+            0,
+            2,
+            1,
+            1,
+        )
+
+        assert src.transform == expected_transform
+
+        # Rasterio stores data as (bands, height, width).
+        expected = np.moveaxis(image, 2, 0)
+
+        np.testing.assert_array_equal(
+            src.read(),
+            expected,
+        )
+
+def test_write_georeferenced_tiff_grayscale(tmp_path):
+    input_path = tmp_path / "input.png"
+    output_path = tmp_path / "output.tif"
+
+    image = np.array(
+        [
+            [10, 20],
+            [30, 40],
+        ],
+        dtype=np.uint8,
+    )
+
+    Image.fromarray(image).save(input_path)
+
+    write_georeferenced_tiff(
+        input_path=input_path,
+        output_path=output_path,
+    )
+
+    with rasterio.open(output_path) as src:
+        assert src.width == 2
+        assert src.height == 2
+        assert src.count == 1
+
+        np.testing.assert_array_equal(
+            src.read(1),
+            image,
+        )

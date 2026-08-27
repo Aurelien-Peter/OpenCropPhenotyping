@@ -1,9 +1,11 @@
 from pathlib import Path
-
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+from PIL import Image
 from rasterio.enums import Resampling
+from rasterio.transform import from_origin
 from rasterio.warp import reproject
 
 
@@ -261,7 +263,61 @@ def write_raster(image: np.ndarray, profile: dict, output_path: Path) -> None:
         dst.write(image, 1)  # Select first band for writing
 
 
-def write_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
+def write_png(image: np.ndarray, output_path: Path) -> None:
+    """
+    Save as a PNG file.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Raster values to save.
+    output_path : Path
+        Path to the output PNG file.
+    """
+    # Raise an error if the output directory does not exist
+    if not output_path.parent.exists():
+        raise FileNotFoundError(f"Output directory does not exist: {output_path.parent}")
+
+    # Raise an error if the input image is not 2D
+    if image.ndim != 3:
+        raise ValueError("Raster image must be a 3D array.")
+
+    plt.imsave(output_path, image)
+
+def write_figure(
+    fig: Figure,
+    output_path: Path,
+    dpi: int = 300,
+) -> None:
+    """
+    Save a Matplotlib figure as a PNG file.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure to save.
+    output_path : Path
+        Path to the output PNG file.
+    dpi : int, default=300
+        Resolution of the output image.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the output directory does not exist.
+    """
+    if not output_path.parent.exists():
+        raise FileNotFoundError(
+            f"Output directory does not exist: {output_path.parent}"
+        )
+
+    fig.savefig(
+        output_path,
+        dpi=dpi,
+        bbox_inches="tight",
+    )    
+
+def write_raster_as_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
     """
     Save a raster image as a PNG file.
 
@@ -281,7 +337,6 @@ def write_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
         raise ValueError("Raster image must be a 2D array.")
 
     plt.imsave(output_path, image, cmap=cmap)
-
 
 def resample_raster(image: np.ndarray, 
                   profile: dict, 
@@ -365,3 +420,97 @@ def resample_raster(image: np.ndarray,
         )[0]
 
     return resampled_image, resampled_profile
+
+def read_rgb_image(image_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Read an RGB image and return its red, green and blue channels.
+
+    Parameters
+    ----------
+    image_path : Path
+        Path to the RGB image to read.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray]
+        Three NumPy arrays containing the red, green and blue channels,
+        respectively. Each array has the same height and width as the
+        input image.
+
+    Raises
+    ------
+    TypeError
+        If the input image is not an RGB image.
+    """
+
+    image = Image.open(image_path)
+
+    if image.mode != "RGB":
+        raise TypeError("Image must be an RGB image.")
+
+    red, green, blue = image.split()
+
+    red = np.asarray(red)
+    green = np.asarray(green)
+    blue = np.asarray(blue)
+
+    return red, green, blue
+
+def write_georeferenced_tiff(
+    input_path: Path,
+    output_path: Path,
+    crs: str = "EPSG:3857",
+) -> None:
+    """
+    Convert an image to a georeferenced GeoTIFF.
+
+    The image is assigned a local spatial reference system where one
+    spatial unit corresponds to one pixel. The upper-left corner is
+    placed at (0, image_height), so that the spatial coordinates remain
+    consistent with the image pixel grid.
+
+    Parameters
+    ----------
+    input_path : Path
+        Path to the input image.
+    output_path : Path
+        Path of the output GeoTIFF.
+    crs : str, default="EPSG:3857"
+        Coordinate reference system assigned to the output raster.
+
+    Returns
+    -------
+    None
+        The GeoTIFF is written to ``output_path``.
+    """
+    image = Image.open(input_path)
+    array = np.asarray(image)
+
+    height, width = array.shape[:2]
+
+    transform = from_origin(
+        0,
+        height,
+        1,
+        1,
+    )
+
+    count = 1 if array.ndim == 2 else array.shape[2]
+
+    with rasterio.open(
+        output_path,
+        "w",
+        driver="GTiff",
+        width=width,
+        height=height,
+        count=count,
+        dtype=array.dtype,
+        transform=transform,
+        crs=crs,
+    ) as dst:
+
+        if count == 1:
+            dst.write(array, 1)
+        else:
+            dst.write(
+                np.moveaxis(array, 2, 0)
+            )

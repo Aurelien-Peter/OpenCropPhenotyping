@@ -76,17 +76,17 @@ def test_process_sentinel2_with_ndvi(monkeypatch, tmp_path):
         mock_compute_statistics,
     )
 
-    # Mock create_vegetation_mask
+    # Mock create_vegetation_mask_ndvi
     vegetation_mask = mat_one
 
-    def mock_create_vegetation_mask(image, threshold):
+    def mock_create_vegetation_mask_ndvi(image, threshold):
         assert image is mat_one
         assert threshold == 0.3
         return vegetation_mask
 
     monkeypatch.setattr(
-        "opencropphenotyping.pipeline.create_vegetation_mask",
-        mock_create_vegetation_mask,
+        "opencropphenotyping.pipeline.create_vegetation_mask_ndvi",
+        mock_create_vegetation_mask_ndvi,
     )
 
     # Mock compute_crop_cover
@@ -195,9 +195,9 @@ def test_process_sentinel2_without_ndvi(monkeypatch, tmp_path):
     )
 
     # These functions must not be called
-    def mock_create_vegetation_mask(image, threshold):
+    def mock_create_vegetation_mask_ndvi(image, threshold):
         raise AssertionError(
-            "create_vegetation_mask should not be called without NDVI"
+            "create_vegetation_mask_ndvi should not be called without NDVI"
         )
 
     def mock_compute_crop_cover(mask):
@@ -206,8 +206,8 @@ def test_process_sentinel2_without_ndvi(monkeypatch, tmp_path):
         )
 
     monkeypatch.setattr(
-        "opencropphenotyping.pipeline.create_vegetation_mask",
-        mock_create_vegetation_mask,
+        "opencropphenotyping.pipeline.create_vegetation_mask_ndvi",
+        mock_create_vegetation_mask_ndvi,
     )
 
     monkeypatch.setattr(
@@ -302,16 +302,16 @@ def test_process_sentinel2_selected_indices(monkeypatch, tmp_path):
         mock_compute_statistics,
     )
 
-    # Mock create_vegetation_mask
+    # Mock create_vegetation_mask_ndvi
     vegetation_mask = mat_one
 
-    def mock_create_vegetation_mask(image, threshold):
+    def mock_create_vegetation_mask_ndvi(image, threshold):
         assert image is mat_one
         return vegetation_mask
 
     monkeypatch.setattr(
-        "opencropphenotyping.pipeline.create_vegetation_mask",
-        mock_create_vegetation_mask,
+        "opencropphenotyping.pipeline.create_vegetation_mask_ndvi",
+        mock_create_vegetation_mask_ndvi,
     )
 
     # Mock compute_crop_cover

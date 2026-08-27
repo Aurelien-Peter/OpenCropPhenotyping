@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib.figure import Figure
 
 
@@ -97,3 +98,370 @@ def plot_statistics(
     figures.append(fig)
 
     return figures
+
+def plot_crop_row_profiles(
+    row_profile: np.ndarray,
+    peaks: np.ndarray | None = None,
+    boundaries: np.ndarray | None = None,
+    title: str = "Crop-row vegetation profile",
+) -> Figure:
+    """
+    Display the vegetation profile used for crop-row detection.
+
+    Parameters
+    ----------
+    row_profile : np.ndarray
+        One-dimensional vegetation profile along the vertical image axis.
+    peaks : np.ndarray, optional
+        Detected crop-row positions.
+    boundaries : np.ndarray, optional
+        Crop-row boundaries.
+    title : str, default="Crop-row vegetation profile"
+        Plot title.
+    """
+    fig, ax = plt.subplots(figsize=(16, 5))
+
+    ax.plot(row_profile)
+
+    if peaks is not None:
+        ax.scatter(
+            peaks,
+            row_profile[peaks],
+            s=40,
+            label="Detected rows",
+        )
+
+    if boundaries is not None:
+        for boundary in boundaries:
+            ax.axvline(
+                boundary,
+                linestyle="--",
+                linewidth=1,
+            )
+
+    ax.set_xlabel("Y position (pixels)")
+    ax.set_ylabel("Vegetation pixels")
+    ax.set_title(title)
+    ax.grid()
+    ax.legend()
+
+    plt.show()
+
+    return fig
+
+def plot_row_masks(
+    row_masks: list[np.ndarray],
+    title: str = "Vegetation masks by crop row",
+) -> Figure:
+    """
+    Display vegetation masks for all crop-row regions.
+
+    Parameters
+    ----------
+    row_masks : list[np.ndarray]
+        Binary vegetation masks, one per crop row.
+    title : str, default="Vegetation masks by crop row"
+        Figure title.
+    """
+    fig, axes = plt.subplots(
+        len(row_masks),
+        1,
+        figsize=(16, 3 * len(row_masks)),
+    )
+
+    if len(row_masks) == 1:
+        axes = [axes]
+
+    for i, (ax, row_mask) in enumerate(
+        zip(axes, row_masks),
+        start=1,
+    ):
+        ax.imshow(
+            row_mask,
+            cmap="gray",
+            aspect="auto",
+        )
+        ax.set_title(f"Row {i}")
+        ax.axis("off")
+
+    fig.suptitle(title)
+    plt.tight_layout()
+    plt.show()
+
+    return fig
+
+def plot_rgb_with_detected_plants(
+    image: np.ndarray,
+    plant_df: pd.DataFrame,
+    title: str = "RGB image and detected plants",
+) -> Figure:
+    """
+    Display an RGB image with detected plant positions.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        RGB image in the coordinate system used by ``plant_df``.
+    plant_df : pd.DataFrame
+        Plant detection results containing ``centroid_x``,
+        ``centroid_y`` and ``missing_candidate``.
+    title : str, default="RGB image and detected plants"
+        Plot title.
+    """
+    fig, ax = plt.subplots(figsize=(16, 8))
+
+    ax.imshow(image)
+
+    detected = plant_df[
+        ~plant_df["missing_candidate"]
+    ].dropna(
+        subset=["centroid_x", "centroid_y"]
+    )
+
+    ax.scatter(
+        detected["centroid_x"],
+        detected["centroid_y"],
+        s=30,
+        label="Detected plants",
+        color="red",
+    )
+
+    missing = plant_df[
+        plant_df["missing_candidate"]
+    ]
+
+    ax.scatter(
+        missing["expected_x"],
+        missing["centroid_y"],
+        s=40,
+        marker="x",
+        label="Missing candidates",
+    )
+
+    ax.set_title(title)
+    ax.legend()
+    ax.axis("off")
+
+    plt.show()
+
+    return fig
+
+def plot_exg_with_detected_plants(
+    exg: np.ndarray,
+    plant_df: pd.DataFrame,
+    title: str = "ExG and detected plants",
+) -> Figure:
+    """
+    Display an ExG image with detected plant positions.
+
+    Parameters
+    ----------
+    exg : np.ndarray
+        ExG image in the coordinate system used by ``plant_df``.
+    plant_df : pd.DataFrame
+        Plant detection results containing ``centroid_x``,
+        ``centroid_y`` and ``missing_candidate``.
+    title : str, default="ExG and detected plants"
+        Plot title.
+    """
+    fig, ax = plt.subplots(figsize=(16, 8))
+
+    ax.imshow(exg)
+
+    detected = plant_df[
+        ~plant_df["missing_candidate"]
+    ].dropna(
+        subset=["centroid_x", "centroid_y"]
+    )
+
+    ax.scatter(
+        detected["centroid_x"],
+        detected["centroid_y"],
+        s=30,
+        color="red",
+        label="Detected plants",
+    )
+
+    missing = plant_df[
+        plant_df["missing_candidate"]
+    ]
+
+    missing = missing.dropna(
+        subset=["expected_x"]
+    )
+
+    ax.scatter(
+        missing["expected_x"],
+        missing["centroid_y"],
+        s=40,
+        marker="x",
+        label="Missing candidates",
+    )
+
+    ax.set_title(title)
+    ax.legend()
+    ax.axis("off")
+
+    plt.show()
+
+    return fig
+
+def plot_rgb_with_annotations(
+    image: np.ndarray,
+    annotations: list[dict] | np.ndarray,
+    title: str = "RGB image with COCO annotations",
+) -> Figure:
+    """
+    Create an RGB image plot with COCO annotation centers.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        RGB image to display.
+    annotations : list[dict] or np.ndarray
+        COCO annotations. Two formats are supported:
+
+        - list of dictionaries containing ``center_x`` and ``center_y``;
+        - NumPy array with shape ``(n_annotations, 2)`` containing
+          ``x`` and ``y`` coordinates.
+
+    title : str, default="RGB image with COCO annotations"
+        Plot title.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Figure containing the RGB image and annotation centers.
+    """
+    fig, ax = plt.subplots(figsize=(16, 8))
+
+    ax.imshow(image)
+
+    if isinstance(annotations, np.ndarray):
+
+        if annotations.ndim != 2 or annotations.shape[1] != 2:
+            raise ValueError(
+                "Annotation array must have shape (n_annotations, 2)."
+            )
+
+        ax.scatter(
+            annotations[:, 0],
+            annotations[:, 1],
+            s=20,
+            alpha=0.5,
+            label="COCO annotations",
+        )
+
+    else:
+
+        for annotation in annotations:
+            ax.scatter(
+                annotation["center_x"],
+                annotation["center_y"],
+                s=20,
+            )
+
+    ax.set_title(
+        f"{title} — {len(annotations)} plants"
+    )
+
+    ax.axis("off")
+
+    return fig
+
+def plot_rgb_with_annotations_and_detected_plants(
+    image: np.ndarray,
+    plant_df: pd.DataFrame,
+    annotations: list[dict] | np.ndarray,
+    title: str = "RGB image with COCO annotations and detected plants",
+) -> Figure:
+    """
+    Display an RGB image with COCO annotation centers and detected plant positions.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        RGB image to display.
+    plant_df : pd.DataFrame
+        Plant detection results containing ``centroid_x``,
+    annotations : list[dict] or np.ndarray
+        COCO annotations. Two formats are supported:
+
+        - list of dictionaries containing ``center_x`` and ``center_y``;
+        - NumPy array with shape ``(n_annotations, 2)`` containing
+          ``x`` and ``y`` coordinates.
+
+    title : str, default="RGB image with COCO annotations"
+        Plot title.
+    """
+    fig, ax = plt.subplots(figsize=(16, 8))
+
+    ax.imshow(image)
+
+    if isinstance(annotations, np.ndarray):
+
+        if annotations.ndim != 2 or annotations.shape[1] != 2:
+            raise ValueError(
+                "Annotation array must have shape (n_annotations, 2)."
+            )
+
+        ax.scatter(
+            annotations[:, 0],
+            annotations[:, 1],
+            s=20,
+            color="blue",
+            label="COCO annotations",
+        )
+
+    else:
+
+        for i, annotation in enumerate(annotations):
+            ax.scatter(
+                annotation["center_x"],
+                annotation["center_y"],
+                s=20,
+                color="blue",
+                alpha=0.5,
+                label="COCO annotations" if i == 0 else None,
+            )
+
+    detected = plant_df[
+        ~plant_df["missing_candidate"]
+    ].dropna(
+        subset=["centroid_x", "centroid_y"]
+    )
+
+    ax.scatter(
+        detected["centroid_x"],
+        detected["centroid_y"],
+        s=30,
+        alpha=0.7,
+        label="Detected plants",
+        color="red",
+    )
+
+    missing = plant_df[
+        plant_df["missing_candidate"]
+    ].dropna(
+        subset=["expected_x", "centroid_y"]
+    )   
+
+    ax.scatter(
+        missing["expected_x"],
+        missing["centroid_y"],
+        s=40,
+        marker="x",
+        alpha=0.8,
+        color="red",
+        label="Missing candidates",
+    )
+    
+    ax.set_title(
+        f"{title} — {len(annotations)} annotated plants"
+    )
+    ax.legend()
+    ax.axis("off")
+
+    plt.show()
+
+    return fig

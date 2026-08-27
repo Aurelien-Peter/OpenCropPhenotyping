@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
-from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mask
+from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mask_ndvi
 
 
-def test_create_vegetation_mask():
+def test_create_vegetation_mask_ndvi():
     # Create a sample NDVI image with known values
     ndvi_image = np.array([[0.1, 0.4, 0.5],
                            [0.2, 0.3, 0.6],
@@ -16,17 +16,17 @@ def test_create_vegetation_mask():
                               [np.nan, 1, 1]])
 
     # Call the function to create the vegetation mask
-    vegetation_mask = create_vegetation_mask(ndvi_image, threshold=0.3)
+    vegetation_mask = create_vegetation_mask_ndvi(ndvi_image, threshold=0.3)
 
     # Assert that the generated mask matches the expected mask
     np.testing.assert_array_equal(vegetation_mask, expected_mask)
 
-def test_create_vegetation_mask_threshold():
+def test_create_vegetation_mask_ndvi_threshold():
     ndvi = np.array([
         [0.3, 0.3001]
     ], dtype=np.float32)
 
-    mask = create_vegetation_mask(ndvi, threshold=0.3)
+    mask = create_vegetation_mask_ndvi(ndvi, threshold=0.3)
 
     expected = np.array([
         [0, 1]
@@ -34,10 +34,10 @@ def test_create_vegetation_mask_threshold():
 
     np.testing.assert_array_equal(mask, expected)
 
-def test_create_vegetation_mask_all_nan():
+def test_create_vegetation_mask_ndvi_all_nan():
     ndvi = np.full((2, 2), np.nan, dtype=np.float32)
 
-    mask = create_vegetation_mask(ndvi)
+    mask = create_vegetation_mask_ndvi(ndvi)
 
     assert np.all(np.isnan(mask))
 

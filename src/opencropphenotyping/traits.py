@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def create_vegetation_mask(ndvi_image: np.ndarray, 
+def create_vegetation_mask_ndvi(ndvi_image: np.ndarray, 
                            threshold: float = 0.3
                            ) -> np.ndarray:
     """

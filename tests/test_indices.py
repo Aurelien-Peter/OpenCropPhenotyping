@@ -3,6 +3,7 @@ import pytest
 
 from opencropphenotyping.indices import (
     _prepare_bands,
+    compute_exg,
     compute_gndvi,
     compute_indexes,
     compute_ndre,
@@ -328,3 +329,97 @@ def test_compute_indexes_unknown_index():
             nir_band=nir_band,
             indices=["unknown"],
         )
+
+def test_exg_simple():
+    rgb_band = np.array(
+        [[[10, 20, 30], [20, 30, 40]],
+            [[30, 40, 50], [40, 50, 60]],
+        ],
+        dtype=np.uint8,
+    )
+
+    red = rgb_band[:, :, 0]
+    green = rgb_band[:, :, 1]
+    blue = rgb_band[:, :, 2]
+
+    expected_exg = np.array(
+        [
+            [0, 0],
+            [0, 0],
+        ],
+        dtype=np.float32,
+    )
+
+    computed_exg = compute_exg((red, green, blue))
+    assert np.allclose(computed_exg, expected_exg), "exg computation failed for simple case."
+
+def test_exg_large_values():
+    rgb_band = np.array(
+        [
+            [[200, 250, 240], [250, 255, 200]],
+            [[180, 240, 220], [220, 250, 230]],
+        ],
+        dtype=np.uint8,
+    )
+
+    red = rgb_band[:, :, 0].astype(np.float32)
+    green = rgb_band[:, :, 1].astype(np.float32)
+    blue = rgb_band[:, :, 2].astype(np.float32)
+
+    expected_exg = 2 * green - red - blue
+
+    computed_exg = compute_exg((red, green, blue))
+    assert np.allclose(computed_exg, expected_exg), "exg computation failed for large values."
+
+def test_exg_large_array():
+    rgb_band = np.random.randint(
+        0,
+        256,
+        size=(1000, 1000, 3),
+        dtype=np.uint8,
+    )
+
+    red = rgb_band[:, :, 0].astype(np.float32)
+    green = rgb_band[:, :, 1].astype(np.float32)
+    blue = rgb_band[:, :, 2].astype(np.float32)
+
+    expected_exg = 2 * green - red - blue
+
+    computed_exg = compute_exg((red, green, blue))
+    assert np.allclose(computed_exg, expected_exg), "exg computation failed for large values."
+
+
+def test_exg_type():
+    rgb_band = np.array(
+        [
+            [[10, 20, 30], [20, 30, 40]],
+            [[30, 40, 50], [40, 50, 60]],
+        ],
+        dtype=np.uint8,
+    )
+
+    rgb = (
+        rgb_band[:, :, 0],
+        rgb_band[:, :, 1],
+        rgb_band[:, :, 2],
+    )
+
+    computed_exg = compute_exg(rgb)
+
+    assert computed_exg.dtype == np.float32, "exg output type is not float32."
+
+def test_exg_negative_values():
+    rgb = (
+        np.array([[100]], dtype=np.uint8),
+        np.array([[50]], dtype=np.uint8),
+        np.array([[100]], dtype=np.uint8),
+    )
+
+    computed_exg = compute_exg(rgb)
+
+    expected_exg = np.array([[-100]], dtype=np.float32)
+
+    assert np.allclose(
+        computed_exg,
+        expected_exg,
+    )

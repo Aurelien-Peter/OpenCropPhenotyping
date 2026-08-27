@@ -231,4 +231,23 @@ def compute_indexes(
             
     return results
     
-    
+def compute_exg(
+    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Compute the Excess Green Index (ExG).
+
+    Parameters
+    ----------
+    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
+        RGB image channels as (red, green, blue).
+
+    Returns
+    -------
+    np.ndarray
+        ExG image with dtype float32.
+    """
+    red = rgb[0].astype(np.float32)
+    green = rgb[1].astype(np.float32)
+    blue = rgb[2].astype(np.float32)
+
+    return 2 * green - red - blue
