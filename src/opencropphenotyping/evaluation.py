@@ -1,6 +1,15 @@
 import numpy as np
 import pandas as pd
+from PIL import Image
+from pathlib import Path
 
+from opencropphenotyping.coco import (
+    build_image_annotation_index,
+    build_plant_annotations_dataframe,
+    get_annotation_centers,
+    load_coco_annotations,
+    get_image_annotations,
+)
 
 def transform_original_points_to_rotated(
     points: np.ndarray,
@@ -265,3 +274,77 @@ def evaluate_plant_detection(
 
     return plants_df, evaluation
 
+def prepare_rotated_annotation_points(
+    json_paths: list[Path],
+    image_path: Path,
+    best_angle: float,
+    rotated_shape: tuple[int, int],
+) -> np.ndarray:
+    """
+    Load and transform plant annotations to rotated image coordinates.
+
+    COCO annotations are loaded from JSON files, indexed by image,
+    converted to a DataFrame, filtered for the target image, and
+    transformed from the original image coordinate system to the
+    rotated image coordinate system.
+
+    Parameters
+    ----------
+    json_paths : list[Path]
+        Paths to COCO annotation JSON files.
+    image_path : Path
+        Path to the image whose plant annotations are required.
+    best_angle : float
+        Rotation angle applied to the image.
+    rotated_shape : tuple[int, int]
+        Shape of the rotated image as ``(height, width)``.
+
+    Returns
+    -------
+    np.ndarray
+        Array of annotated plant centres in the rotated image
+        coordinate system, with shape ``(n_annotations, 2)``.
+        Columns correspond to x and y coordinates.
+    """
+    # Load COCO annotations
+    coco_datasets = load_coco_annotations(
+        json_paths=json_paths,
+    )
+
+    # Link each image to its annotations
+    image_annotations = build_image_annotation_index(
+        coco_datasets=coco_datasets,
+    )
+
+    # Build annotation DataFrame
+    plant_annotations = build_plant_annotations_dataframe(
+        image_annotations=image_annotations,
+    )
+
+    # Keep annotations for the target image
+    plant_annotations = get_image_annotations(
+        plant_annotations=plant_annotations,
+        image_path=image_path,
+    )
+
+    # Get annotation centres
+    annotation_points = get_annotation_centers(
+        plant_annotations=plant_annotations,
+    )
+
+    # Get original image shape
+    original_shape = np.array(
+        Image.open(image_path)
+    ).shape[:2]
+
+    # Transform annotation centres
+    annotation_points_rotated = (
+        transform_original_points_to_rotated(
+            points=annotation_points,
+            angle=best_angle,
+            original_shape=original_shape,
+            rotated_shape=rotated_shape,
+        )
+    )
+
+    return annotation_points_rotated

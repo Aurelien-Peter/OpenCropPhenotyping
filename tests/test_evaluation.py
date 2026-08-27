@@ -8,6 +8,7 @@ from opencropphenotyping.evaluation import (
     evaluate_plant_detection,
     match_annotations_to_plant_positions,
     transform_original_points_to_rotated,
+    prepare_rotated_annotation_points,
 )
 
 
@@ -313,3 +314,28 @@ def test_match_annotations_multiple_annotations():
     assert result["annotation_count"].iloc[0] == 3
     assert result["annotation_present"].iloc[0]
 
+def test_prepare_rotated_annotation_points(toy_dataset):
+    json_paths = list(
+        toy_dataset["dataset_dir"].glob("*.json")
+    )
+
+    image_path = toy_dataset["image_path"]
+
+    best_angle = 10.0
+
+    # On peut utiliser une shape connue pour le test
+    rotated_shape = (1000, 1000)
+
+    result = prepare_rotated_annotation_points(
+        json_paths=json_paths,
+        image_path=image_path,
+        best_angle=best_angle,
+        rotated_shape=rotated_shape,
+    )
+
+    assert isinstance(result, np.ndarray)
+
+    assert result.ndim == 2
+    assert result.shape[1] == 2
+
+    assert len(result) > 0

@@ -34,6 +34,7 @@ def toy_dataset(project_root):
     plot = plots.iloc[0]
 
     return {
+        "dataset_dir": dataset_dir,
         "image_path": image_path,
         "geotiff_path": geotiff_path,
         "geopackage_path": geopackage_path,
