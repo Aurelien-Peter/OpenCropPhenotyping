@@ -1,5 +1,6 @@
 import json
-
+from pathlib import Path
+import pandas as pd
 import numpy as np
 import pytest
 
@@ -8,6 +9,7 @@ from opencropphenotyping.coco import (
     build_plant_annotations_dataframe,
     get_annotation_centers,
     load_coco_annotations,
+    get_image_annotations,
 )
 
 
@@ -205,17 +207,59 @@ def test_build_plant_annotations_dataframe_empty():
         "center_y",
     ]
 
-def test_get_annotation_centers():
-    annotations = [
-        {
-            "center_x": 10.0,
-            "center_y": 20.0,
-        },
-        {
-            "center_x": 30.5,
-            "center_y": 40.5,
-        },
+def test_get_image_annotations():
+    plant_annotations = pd.DataFrame({
+        "image_id": [1, 1, 2],
+        "image_name": [
+            "image_1.png",
+            "image_1.png",
+            "image_2.png",
+        ],
+        "category_id": [1, 1, 1],
+        "center_x": [10.0, 20.0, 30.0],
+        "center_y": [15.0, 25.0, 35.0],
+    })
+
+    image_path = Path("image_1.png")
+
+    result = get_image_annotations(
+        plant_annotations=plant_annotations,
+        image_path=image_path,
+    )
+
+    assert len(result) == 2
+    assert list(result["image_name"]) == [
+        "image_1.png",
+        "image_1.png",
     ]
+    assert list(result["center_x"]) == [
+        10.0,
+        20.0,
+    ]
+
+def test_get_image_annotations_empty():
+    plant_annotations = pd.DataFrame({
+        "image_id": [1],
+        "image_name": ["image_1.png"],
+        "category_id": [1],
+        "center_x": [10.0],
+        "center_y": [15.0],
+    })
+
+    result = get_image_annotations(
+        plant_annotations=plant_annotations,
+        image_path=Path("image_2.png"),
+    )
+
+    assert result.empty
+    
+def test_get_annotation_centers():
+    annotations = pd.DataFrame(
+        {
+            "center_x": [10.0, 30.5],
+            "center_y": [20.0, 40.5],
+        }
+    )
 
     result = get_annotation_centers(
         annotations
@@ -232,6 +276,13 @@ def test_get_annotation_centers():
     )
 
 def test_get_annotation_centers_empty():
-    result = get_annotation_centers([])
+    annotations = pd.DataFrame(
+        columns=["center_x", "center_y"]
+    )
+
+    result = get_annotation_centers(
+        annotations
+    )
 
     assert result.shape == (0, 2)
+    assert result.dtype == float

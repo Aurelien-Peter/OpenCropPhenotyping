@@ -1,9 +1,7 @@
 import json
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
-
 
 def load_coco_annotations(
     json_paths: list[Path],
@@ -122,15 +120,40 @@ def build_plant_annotations_dataframe(
 
     return pd.DataFrame(plant_annotations, columns=columns)
 
+def get_image_annotations(
+    plant_annotations: pd.DataFrame,
+    image_path: Path,
+) -> pd.DataFrame:
+    """
+    Return plant annotations associated with a given image.
+
+    Parameters
+    ----------
+    plant_annotations : pd.DataFrame
+        DataFrame containing plant annotations for all images.
+        Must contain an ``image_name`` column.
+    image_path : Path
+        Path to the image for which annotations are requested.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing only the annotations associated with
+        ``image_path``.
+    """
+    return plant_annotations[
+        plant_annotations["image_name"] == image_path.name
+    ].copy()
+
 def get_annotation_centers(
-    annotations: list[dict],
+    plant_annotations: pd.DataFrame,
 ) -> np.ndarray:
     """
     Extract annotated plant centres as an array of x/y coordinates.
 
     Parameters
     ----------
-    annotations : list[dict]
+    plant_annotations : pd.DataFrame
         Plant annotations containing ``center_x`` and ``center_y``.
 
     Returns
@@ -139,19 +162,12 @@ def get_annotation_centers(
         Array of plant centres with shape ``(n_annotations, 2)``.
         Columns correspond to x and y coordinates.
     """
-    if not annotations:
+    if len(plant_annotations) == 0:
         return np.empty(
             (0, 2),
             dtype=float,
         )
 
-    return np.array(
-        [
-            [
-                annotation["center_x"],
-                annotation["center_y"],
-            ]
-            for annotation in annotations
-        ],
-        dtype=float,
-    )
+    return plant_annotations[
+        ["center_x", "center_y"]
+    ].to_numpy(dtype=float)
