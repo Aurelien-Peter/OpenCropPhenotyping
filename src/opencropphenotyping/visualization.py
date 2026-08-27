@@ -104,7 +104,7 @@ def plot_crop_row_profiles(
     peaks: np.ndarray | None = None,
     boundaries: np.ndarray | None = None,
     title: str = "Crop-row vegetation profile",
-) -> None:
+) -> Figure:
     """
     Display the vegetation profile used for crop-row detection.
 
@@ -147,10 +147,12 @@ def plot_crop_row_profiles(
 
     plt.show()
 
+    return fig
+
 def plot_row_masks(
     row_masks: list[np.ndarray],
     title: str = "Vegetation masks by crop row",
-) -> None:
+) -> Figure:
     """
     Display vegetation masks for all crop-row regions.
 
@@ -186,11 +188,13 @@ def plot_row_masks(
     plt.tight_layout()
     plt.show()
 
+    return fig
+
 def plot_rgb_with_detected_plants(
     image: np.ndarray,
     plant_df: pd.DataFrame,
     title: str = "RGB image and detected plants",
-) -> None:
+) -> Figure:
     """
     Display an RGB image with detected plant positions.
 
@@ -240,11 +244,13 @@ def plot_rgb_with_detected_plants(
 
     plt.show()
 
+    return fig
+
 def plot_exg_with_detected_plants(
     exg: np.ndarray,
     plant_df: pd.DataFrame,
     title: str = "ExG and detected plants",
-) -> None:
+) -> Figure:
     """
     Display an ExG image with detected plant positions.
 
@@ -298,13 +304,15 @@ def plot_exg_with_detected_plants(
 
     plt.show()
 
+    return fig
+
 def plot_rgb_with_annotations(
     image: np.ndarray,
     annotations: list[dict] | np.ndarray,
     title: str = "RGB image with COCO annotations",
-) -> None:
+) -> Figure:
     """
-    Display an RGB image with COCO annotation centers.
+    Create an RGB image plot with COCO annotation centers.
 
     Parameters
     ----------
@@ -319,6 +327,11 @@ def plot_rgb_with_annotations(
 
     title : str, default="RGB image with COCO annotations"
         Plot title.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Figure containing the RGB image and annotation centers.
     """
     fig, ax = plt.subplots(figsize=(16, 8))
 
@@ -335,6 +348,8 @@ def plot_rgb_with_annotations(
             annotations[:, 0],
             annotations[:, 1],
             s=20,
+            alpha=0.5,
+            label="COCO annotations",
         )
 
     else:
@@ -352,14 +367,14 @@ def plot_rgb_with_annotations(
 
     ax.axis("off")
 
-    plt.show()
+    return fig
 
 def plot_rgb_with_annotations_and_detected_plants(
     image: np.ndarray,
     plant_df: pd.DataFrame,
     annotations: list[dict] | np.ndarray,
     title: str = "RGB image with COCO annotations and detected plants",
-) -> None:
+) -> Figure:
     """
     Display an RGB image with COCO annotation centers and detected plant positions.
 
@@ -379,7 +394,7 @@ def plot_rgb_with_annotations_and_detected_plants(
     title : str, default="RGB image with COCO annotations"
         Plot title.
     """
-    _, ax = plt.subplots(figsize=(16, 8))
+    fig, ax = plt.subplots(figsize=(16, 8))
 
     ax.imshow(image)
 
@@ -448,3 +463,5 @@ def plot_rgb_with_annotations_and_detected_plants(
     ax.axis("off")
 
     plt.show()
+
+    return fig
