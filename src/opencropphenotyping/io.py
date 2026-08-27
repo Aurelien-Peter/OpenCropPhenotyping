@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
@@ -263,7 +263,61 @@ def write_raster(image: np.ndarray, profile: dict, output_path: Path) -> None:
         dst.write(image, 1)  # Select first band for writing
 
 
-def write_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
+def write_png(image: np.ndarray, output_path: Path) -> None:
+    """
+    Save as a PNG file.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Raster values to save.
+    output_path : Path
+        Path to the output PNG file.
+    """
+    # Raise an error if the output directory does not exist
+    if not output_path.parent.exists():
+        raise FileNotFoundError(f"Output directory does not exist: {output_path.parent}")
+
+    # Raise an error if the input image is not 2D
+    if image.ndim != 3:
+        raise ValueError("Raster image must be a 3D array.")
+
+    plt.imsave(output_path, image)
+
+def write_figure(
+    fig: Figure,
+    output_path: Path,
+    dpi: int = 300,
+) -> None:
+    """
+    Save a Matplotlib figure as a PNG file.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure to save.
+    output_path : Path
+        Path to the output PNG file.
+    dpi : int, default=300
+        Resolution of the output image.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the output directory does not exist.
+    """
+    if not output_path.parent.exists():
+        raise FileNotFoundError(
+            f"Output directory does not exist: {output_path.parent}"
+        )
+
+    fig.savefig(
+        output_path,
+        dpi=dpi,
+        bbox_inches="tight",
+    )    
+
+def write_raster_as_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
     """
     Save a raster image as a PNG file.
 
@@ -283,7 +337,6 @@ def write_png(image: np.ndarray, output_path: Path, cmap="gray") -> None:
         raise ValueError("Raster image must be a 2D array.")
 
     plt.imsave(output_path, image, cmap=cmap)
-
 
 def resample_raster(image: np.ndarray, 
                   profile: dict, 

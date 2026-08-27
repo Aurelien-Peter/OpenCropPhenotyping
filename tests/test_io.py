@@ -15,7 +15,7 @@ from opencropphenotyping.io import (
     resample_raster,
     select_bands,
     write_georeferenced_tiff,
-    write_png,
+    write_raster_as_png,
     write_raster,
 )
 
@@ -327,27 +327,27 @@ def test_write_raster_nonexistent_directory(tmp_path):
 
 
 def test_write_png(tmp_path):
-    # Test write_png function
+    # Test write_raster_as_png function
     image = np.random.rand(100, 100).astype(np.float32)
     output_path = tmp_path / "output.png"
-    write_png(image, output_path)
+    write_raster_as_png(image, output_path)
     assert output_path.exists(), "PNG file was not created."
 
 
 def test_write_png_nonexistent_directory(tmp_path):
-    # Test write_png function with a non-existent directory
+    # Test write_raster_as_png function with a non-existent directory
     image = np.random.rand(100, 100).astype(np.float32)
     output_path = tmp_path / "nonexistent_dir" / "output.png"
     with pytest.raises(FileNotFoundError):
-        write_png(image, output_path)
+        write_raster_as_png(image, output_path)
 
 
 def test_write_png_wrong_dimension(tmp_path):
-    # Test write_png function with a non-2D array
+    # Test write_raster_as_png function with a non-2D array
     image = np.random.rand(100, 100, 3).astype(np.float32)  # 3D array
     output_path = tmp_path / "output.png"
     with pytest.raises(ValueError, match="Raster image must be a 2D array."):
-        write_png(image, output_path)
+        write_raster_as_png(image, output_path)
 
 def test_resample_raster_3d(raster_profile):
     # Test resample_master function with non-2D arrays
