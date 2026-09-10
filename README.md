@@ -191,29 +191,35 @@ The input directory should contain one Sentinel-2 product per subdirectory. Each
 
 For example:
 
-input/
-├── S2A_MSIL2A_product_1.SAFE/
+input/  
+├── S2A_MSIL2A_product_1.SAFE/  
 └── S2B_MSIL2A_product_2.SAFE/
 
 produces:
 
-results/
-├── S2A_MSIL2A_product_1.SAFE/
+results/  
+├── S2A_MSIL2A_product_1.SAFE/  
 └── S2B_MSIL2A_product_2.SAFE/
 
 ### Get help
 
 General help is available with:
 
+```python
 opencropphenotyping --help
+```
 
 Help for an individual command can be obtained with:
 
+```python
 opencropphenotyping process --help
+```
 
 or:
 
+```python
 opencropphenotyping batch --help
+```
 
 If an error occurs while processing a product, the CLI reports the error and exits with a non-zero status code.
 
