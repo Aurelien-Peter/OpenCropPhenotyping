@@ -284,6 +284,28 @@ def write_png(image: np.ndarray, output_path: Path) -> None:
 
     plt.imsave(output_path, image)
 
+def write_grayscale_png(
+    image: np.ndarray,
+    output_path: Path,
+) -> None:
+    """
+    Save a 2D raster image as a grayscale PNG.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        2D array of raster values to save.
+    output_path : Path
+        Path to the output PNG file.
+    """
+    if image.ndim != 2:
+        raise ValueError("Grayscale image must be a 2D array.")
+
+    if not output_path.parent.exists():
+        output_path.parent.mkdir(parents=True)
+
+    Image.fromarray(image).save(output_path)
+
 def write_figure(
     fig: Figure,
     output_path: Path,
