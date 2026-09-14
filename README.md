@@ -215,10 +215,16 @@ Help for an individual command can be obtained with:
 opencropphenotyping process --help
 ```
 
-or:
-
 ```python
 opencropphenotyping batch --help
+```
+
+```python
+opencropphenotyping segment_uav --help
+```
+
+```python
+opencropphenotyping process_uav_segmentation --help
 ```
 
 If an error occurs while processing a product, the CLI reports the error and exits with a non-zero status code.
@@ -338,7 +344,65 @@ results/
 ├── statistics.csv  
 └── crop_cover.txt 
 
-### RGB UAV imagery
+### Processing pipeline
+
+The Sentinel-2 processing pipeline provides a high-level interface to process Sentinel-2 imagery and extract vegetation-related traits.
+
+```python
+from pathlib import Path
+
+from opencropphenotyping.pipeline import (
+    process_sentinel2,
+    export_results,
+)
+
+input_dir = Path("data/raw")
+output_dir = Path("data/processed")
+
+result = process_sentinel2(
+    input_dir=input_dir,
+    indices=["ndvi", "ndre"],
+    resolution=10,
+    ndvi_threshold=0.3,
+)
+
+export_results(
+    result,
+    output_dir=output_dir,
+)
+```
+
+The indices parameter can be used to select which vegetation indices are computed:
+
+```python
+indices=["ndvi"]
+```
+
+or:
+
+```python
+indices=["ndvi", "savi", "ndre", "gndvi"]
+```
+
+If ```python indices=None```, all available vegetation indices are requested.
+
+If the bands required for a requested index are unavailable, that index is not computed and the pipeline continues processing the other available indices.
+
+When NDVI is available, the pipeline also creates a vegetation mask and estimates crop cover.
+
+### Processing results
+
+The process_sentinel2() function returns a ProcessingResult object containing:
+
+- the computed vegetation indices;
+- the raster profile;
+- statistics for each computed index;
+- the vegetation mask, when NDVI is available;
+- the crop cover estimate, when NDVI is available.
+
+The results can then be exported using export_results().
+
+## RGB UAV imagery
 
 OpenCropPhenotyping also provides a classical RGB UAV workflow for crop-row and plant-position analysis.
 
@@ -419,7 +483,7 @@ A dedicated notebook demonstrates the complete workflow and the use of the packa
 notebooks/  
 └── 06_UAV RGB workflow demonstration.ipynb
 
-The notebook also contains examples of intermediate visualizations and exported figures used for project documentation.
+The notebook also contains examples of intermediate visualizations and exported figures used for project documentation with batch processing function.
 
 #### RGB UAV imagery
 
@@ -433,63 +497,157 @@ The three returned arrays have the same spatial dimensions as the input image.
 
 This functionality provides the foundation for RGB-based vegetation segmentation, crop-row detection and plant-position analysis.
 
-### Processing pipeline
+### UAV RGB processing
 
-The Sentinel-2 processing pipeline provides a high-level interface to process Sentinel-2 imagery and extract vegetation-related traits.
+The UAV RGB processing pipeline provides a high-level interface for plant occupancy estimation from RGB drone imagery.
+
+A UAV dataset is composed of:
+
+* an RGB image;
+* a georeferenced GeoTIFF corresponding to the image;
+* a GeoPackage containing the experimental plot geometry and metadata.
+
+The GeoPackage contains the plot geometry together with the `image_id`, `n_rows` and `n_plants` attributes used by the pipeline.
+
+A single UAV dataset can be processed using the `detect_plants()` function:
 
 ```python
 from pathlib import Path
 
-from opencropphenotyping.pipeline import (
-    process_sentinel2,
-    export_results,
+from opencropphenotyping.plants import detect_plants
+from opencropphenotyping.io import export_uav_results
+
+image_path = Path("data/raw/uav/image.png")
+geotiff_path = Path("data/raw/uav/image_georef.tif")
+geopackage_path = Path("data/raw/uav/plots.gpkg")
+
+result = detect_plants(
+    image_path=image_path,
+    geotiff_path=geotiff_path,
+    geopackage_path=geopackage_path,
+    threshold=25,
+    vegetation_fraction_threshold=0.04,
 )
 
-input_dir = Path("data/raw")
-output_dir = Path("data/processed")
-
-result = process_sentinel2(
-    input_dir=input_dir,
-    indices=["ndvi", "ndre"],
-    resolution=10,
-    ndvi_threshold=0.3,
-)
-
-export_results(
+export_uav_results(
     result,
-    output_dir=output_dir,
+    output_dir=Path("data/processed/uav"),
 )
 ```
 
-The indices parameter can be used to select which vegetation indices are computed:
+The pipeline:
 
-```python
-indices=["ndvi"]
-```
+* reads the RGB UAV image and computes the Excess Green (ExG) vegetation index;
+* estimates the crop-row orientation and rotates the image and plot geometry accordingly;
+* segments vegetation from the ExG image;
+* detects crop rows;
+* determines crop-row boundaries from the experimental plot geometry;
+* estimates theoretical planting positions from the `n_plants` metadata;
+* calculates vegetation fraction around each expected planting position;
+* identifies potential missing plants using the vegetation-fraction threshold.
 
-or:
+The `threshold` parameter controls vegetation segmentation from ExG values.
 
-```python
-indices=["ndvi", "savi", "ndre", "gndvi"]
-```
-
-If ```python indices=None```, all available vegetation indices are requested.
-
-If the bands required for a requested index are unavailable, that index is not computed and the pipeline continues processing the other available indices.
-
-When NDVI is available, the pipeline also creates a vegetation mask and estimates crop cover.
+The `vegetation_fraction_threshold` parameter is used to classify potential missing plants. Lower values require less vegetation to classify a planting position as occupied.
 
 ### Processing results
 
-The process_sentinel2() function returns a ProcessingResult object containing:
+The `detect_plants()` function returns a `UAVSegmentationResult` object containing:
 
-- the computed vegetation indices;
-- the raster profile;
-- statistics for each computed index;
-- the vegetation mask, when NDVI is available;
-- the crop cover estimate, when NDVI is available.
+* the plant-level dataframe;
+* the estimated crop-row positions;
+* the crop-row boundaries;
+* the estimated row orientation;
+* the vegetation mask;
+* the rotated RGB image;
+* the rotated ExG image.
 
-The results can then be exported using export_results().
+The results can be exported using `export_uav_results()`.
+
+By default, the export includes the plant-level results and the detected crop-row positions and boundaries. Intermediate raster outputs can also be exported with:
+
+```python
+export_uav_results(
+    result,
+    output_dir=output_dir,
+    export_intermediate=True,
+)
+```
+
+### UAV batch processing
+
+Several UAV datasets can be processed from a parent directory using `process_uav_batch()`.
+
+Each dataset must be stored in a separate subdirectory containing one RGB image, one georeferenced GeoTIFF and one GeoPackage:
+
+```text
+data/raw/uav/
+├── plot_103_DSC01167/
+│   ├── image.png
+│   ├── image_georef.tif
+│   └── plots.gpkg
+├── plot_104_DSC09694/
+│   ├── image.png
+│   ├── image_georef.tif
+│   └── plots.gpkg
+└── plot_108_DSC01166/
+    ├── image.png
+    ├── image_georef.tif
+    └── plots.gpkg
+```
+
+The batch function processes each dataset independently and stores the results in a corresponding output subdirectory:
+
+```python
+from pathlib import Path
+
+from opencropphenotyping.batch_processing import process_uav_batch
+
+process_uav_batch(
+    input_dir=Path("data/raw/uav"),
+    output_dir=Path("data/processed/uav"),
+    threshold=25,
+    vegetation_fraction_threshold=0.04,
+    export_intermediate=True,
+)
+```
+
+If one dataset cannot be processed, the error is reported and processing continues with the remaining datasets.
+
+### Command-line interface
+
+The UAV processing pipeline is also available through the command-line interface.
+
+To process a single UAV dataset:
+
+```bash
+opencropphenotyping segment-uav \
+    --image-path data/raw/uav/image.png \
+    --geotiff-path data/raw/uav/image_georef.tif \
+    --geopackage-path data/raw/uav/plots.gpkg \
+    --output-dir data/processed/uav
+```
+
+To process several UAV datasets from a parent directory:
+
+```bash
+opencropphenotyping batch-uav \
+    --input-dir data/raw/uav \
+    --output-dir data/processed/uav
+```
+
+Optional parameters can be used to modify the vegetation segmentation and plant-occupancy thresholds:
+
+```bash
+opencropphenotyping batch-uav \
+    --input-dir data/raw/uav \
+    --output-dir data/processed/uav \
+    --threshold 25 \
+    --vegetation-fraction-threshold 0.04 \
+    --export-intermediate
+```
+
+The CLI follows the same processing pipeline as the Python API and can therefore be used for reproducible processing of individual UAV datasets or complete directories of datasets.
 
 ## Contributing 
 
