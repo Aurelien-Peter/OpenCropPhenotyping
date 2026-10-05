@@ -1331,12 +1331,13 @@ def test_detect_plants(toy_dataset, monkeypatch):
     ):
         return np.array([25, 100, 175])
 
+    boundaries_result = np.array([0, 50, 100])
     def fake_compute_row_boundaries_from_plot(
         y_start,
         y_end,
         n_rows,
     ):
-        return np.array([0, 50, 100])
+        return boundaries_result
 
     def fake_extract_row_images(
         image,
@@ -1370,8 +1371,9 @@ def test_detect_plants(toy_dataset, monkeypatch):
     def fake_compute_row_profile(vegetation_mask):
         return np.zeros(100)
 
+    peaks = np.array([20, 70])
     def fake_detect_crop_rows(row_profile):
-        return np.array([20, 70])
+        return peaks
 
     monkeypatch.setattr(
         "opencropphenotyping.segmentation.load_plot_metadata",
@@ -1436,19 +1438,14 @@ def test_detect_plants(toy_dataset, monkeypatch):
         export_all=False,
         threshold=25,
     )
-
-    assert result[:-1] == (
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
+    
+    assert all(
+        result[i] is None
+        for i in [0, 1, 2, 3, 4, 7, 8, 9]
     )
+
+    np.testing.assert_allclose(result[5], peaks)
+    np.testing.assert_allclose(result[6], boundaries_result)
 
     plants_df = result[-1]
 
