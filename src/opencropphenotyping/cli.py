@@ -3,7 +3,7 @@ from pathlib import Path
 import typer
 
 from opencropphenotyping.batch_processing import process_batch, process_uav_batch
-from opencropphenotyping.pipeline import export_results, process_sentinel2, process_uav_segmentation, export_uav_results
+from opencropphenotyping.pipeline import export_results, export_uav_results, process_sentinel2, process_uav_segmentation
 
 app = typer.Typer()
 

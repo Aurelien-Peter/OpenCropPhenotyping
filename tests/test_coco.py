@@ -1,15 +1,16 @@
 import json
 from pathlib import Path
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import pytest
 
 from opencropphenotyping.coco import (
     build_image_annotation_index,
     build_plant_annotations_dataframe,
     get_annotation_centers,
-    load_coco_annotations,
     get_image_annotations,
+    load_coco_annotations,
 )
 
 

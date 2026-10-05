@@ -1,4 +1,3 @@
-from unittest import result
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from opencropphenotyping.indices import compute_indexes
-from opencropphenotyping.io import build_band_catalog, read_band, select_bands, write_raster, write_png, write_grayscale_png
+from opencropphenotyping.io import build_band_catalog, read_band, select_bands, write_grayscale_png, write_png, write_raster
 from opencropphenotyping.segmentation import detect_plants
 from opencropphenotyping.statistics import compute_statistics
 from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mask_ndvi

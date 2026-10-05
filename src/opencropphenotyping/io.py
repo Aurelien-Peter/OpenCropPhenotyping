@@ -1,8 +1,9 @@
 from pathlib import Path
-from matplotlib.figure import Figure
+
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+from matplotlib.figure import Figure
 from PIL import Image
 from rasterio.enums import Resampling
 from rasterio.transform import from_origin

@@ -15,8 +15,8 @@ from opencropphenotyping.io import (
     resample_raster,
     select_bands,
     write_georeferenced_tiff,
-    write_raster_as_png,
     write_raster,
+    write_raster_as_png,
 )
 
 
