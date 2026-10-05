@@ -136,6 +136,7 @@ def segment_uav(
         export_uav_results(
             result,
             output_dir,
+            export_intermediate=export_intermediate
         )
 
     except Exception as e:
@@ -149,9 +150,10 @@ def segment_uav(
         "UAV segmentation completed successfully."
     )
 
-    typer.echo(
-        f"Best angle: {best_angle:.1f}°"
-    )
+    if(export_intermediate):
+        typer.echo(
+            f"Best angle: {result.best_angle:.1f}°"
+        )
 
     typer.echo(
         f"Detected rows: {len(result.row_positions)}"

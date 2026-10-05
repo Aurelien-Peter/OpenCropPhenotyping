@@ -391,3 +391,4 @@ def export_uav_results(
             result.vegetation_mask,
             output_dir / "vegetation_mask.png",
         )
+    print(f"Export complete. Results saved to: {output_dir}")
