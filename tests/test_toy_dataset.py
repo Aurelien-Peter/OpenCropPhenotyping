@@ -1,6 +1,7 @@
+from hashlib import sha256
+
 from opencropphenotyping.io import read_band
 
-from hashlib import sha256
 
 def file_hash(path):
     return sha256(path.read_bytes()).hexdigest()
