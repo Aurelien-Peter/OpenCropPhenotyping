@@ -1,5 +1,7 @@
 # OpenCropPhenotyping
 
+[![CI](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/ci.yml/badge.svg)](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/ci.yml)
+
 **An open-source Python framework for high-throughput crop phenotyping using drone and satellite imagery.**
 
 ## About the project
