@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 from opencropphenotyping.indices import compute_indexes
-from opencropphenotyping.io import build_band_catalog, read_band, select_bands, write_raster
+from opencropphenotyping.io import build_band_catalog, read_band, select_bands, write_grayscale_png, write_png, write_raster
+from opencropphenotyping.segmentation import detect_plants
 from opencropphenotyping.statistics import compute_statistics
 from opencropphenotyping.traits import compute_crop_cover, create_vegetation_mask_ndvi
 
@@ -20,6 +21,18 @@ class ProcessingResult:
     vegetation_mask: np.ndarray | None
     crop_cover: float | None
 
+@dataclass
+class UAVSegmentationResult:
+    """Results produced by the UAV plant-detection pipeline."""
+
+    plants: pd.DataFrame
+    best_angle: float
+    row_profile: np.ndarray
+    row_positions: np.ndarray
+    row_boundaries: np.ndarray
+    vegetation_mask: np.ndarray
+    rotated_image: np.ndarray
+    rotated_exg: np.ndarray
 
 def process_sentinel2(
     input_dir: Path,
@@ -237,3 +250,144 @@ def export_results(
         cover_path = product_output_dir / "crop_cover.txt"
         with open(cover_path, "w", encoding="utf-8") as f:
             f.write(f"Crop Cover: {result.crop_cover:.2f}\n")
+
+def process_uav_segmentation(
+    image_path: Path,
+    geotiff_path: Path,
+    geopackage_path: Path,
+    best_angle: float | None = None,
+    threshold: float = 25.0,
+    vegetation_fraction_threshold: float = 0.04,
+    export_intermediate: bool = False,
+) -> UAVSegmentationResult:
+    """
+    Process a UAV RGB image and detect crop plants.
+
+    Parameters
+    ----------
+    image_path : Path
+        Path to the UAV RGB image.
+    geotiff_path : Path
+        Path to the georeferenced GeoTIFF.
+    geopackage_path : Path
+        Path to the experimental plot GeoPackage.
+    best_angle : float | None, optional
+        Crop-row orientation angle. If omitted, it is estimated automatically.
+        Default is None.
+    threshold : float, optional
+        ExG threshold used for vegetation segmentation. Default is 25.0.
+    vegetation_fraction_threshold : float, optional
+        Vegetation fraction threshold used to classify planting positions.
+        Default is 0.04.
+    export_intermediate : bool, optional
+        If True, all intermediate results (rotated image, vegetation mask, etc.) will be exported.
+        Default is True.
+
+    Returns
+    -------
+    UAVSegmentationResult
+        Results produced by the UAV plant-detection pipeline, including detected plants,
+        best angle, row profile, row positions, row boundaries, vegetation mask,
+        rotated image, and rotated ExG.
+    """
+    (
+        best_angle,
+        rotated_img,
+        rotated_exg,
+        vegetation_mask,
+        row_profile,
+        peaks,
+        boundaries,
+        row_images,
+        row_masks,
+        row_detections,
+        plants_df,
+    ) = detect_plants(
+        image_path=image_path,
+        geotiff_path=geotiff_path,
+        geopackage_path=geopackage_path,
+        best_angle=best_angle,
+        threshold=threshold,
+        vegetation_fraction_threshold=vegetation_fraction_threshold,
+        export_all=export_intermediate
+    )
+
+    return UAVSegmentationResult(
+        plants=plants_df,
+        best_angle=best_angle,
+        row_profile=row_profile,
+        row_positions=peaks,
+        row_boundaries=boundaries,
+        vegetation_mask=vegetation_mask,
+        rotated_image=rotated_img,
+        rotated_exg=rotated_exg
+    )
+
+def export_uav_results(
+    result: UAVSegmentationResult,
+    output_dir: Path,
+    export_intermediate: bool = False,
+) -> None:
+    """
+    Export UAV plant-detection results.
+
+    Parameters
+    ----------
+    result : UAVSegmentationResult
+        Results produced by ``detect_plants``.
+    output_dir : Path
+        Directory where results will be saved.
+    export_intermediate : bool, optional
+        If True, all intermediate results will be exported.
+        Default is False.
+    """ 
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    result.plants.to_csv(
+        output_dir / "plants.csv",
+        index=False,
+    )
+
+    pd.DataFrame(
+        {
+            "row_position": result.row_positions,
+        }
+    ).to_csv(
+        output_dir / "row_positions.csv",
+        index=False,
+    )
+
+    pd.DataFrame(
+        {
+            "boundary": result.row_boundaries,
+        }
+    ).to_csv(
+        output_dir / "row_boundaries.csv",
+        index=False,
+    ) 
+
+    if(export_intermediate):
+        print(
+            "rotated_image:",
+            result.rotated_image.shape,
+            result.rotated_image.dtype,
+        )
+
+        print(
+            "vegetation_mask:",
+            result.vegetation_mask.shape,
+            result.vegetation_mask.dtype,
+        )
+        write_png(
+            result.rotated_image,
+            output_dir / "rotated_image.png",
+        )
+
+        write_grayscale_png(
+            result.vegetation_mask,
+            output_dir / "vegetation_mask.png",
+        )
+    print(f"Export complete. Results saved to: {output_dir}")

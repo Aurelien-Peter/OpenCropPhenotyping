@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Ruff
+        run: ruff check .
+
+      - name: Check test data
+        run: |
+          python -c "from pathlib import Path; p=Path('data/raw/toy_datasets/toy_dataset_1'); print('Dataset exists:', p.exists()); print(*[x.name for x in p.iterdir()], sep='\n')"
+          
+      - name: Run tests
+        run: pytest

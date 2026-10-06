@@ -7,8 +7,8 @@ from opencropphenotyping.evaluation import (
     compute_confusion_matrix,
     evaluate_plant_detection,
     match_annotations_to_plant_positions,
-    transform_original_points_to_rotated,
     prepare_rotated_annotation_points,
+    transform_original_points_to_rotated,
 )
 
 

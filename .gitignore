@@ -271,7 +271,7 @@ Thumbs.db
 # Github
 # =========================
 
-.github
+.github/ISSUE_TEMPLATE
 
 # =========================
 # QGIS

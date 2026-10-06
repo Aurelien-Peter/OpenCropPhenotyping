@@ -9,6 +9,30 @@ def project_root():
     return Path(__file__).resolve().parents[1]
 
 @pytest.fixture
+def safe_toy_dataset(tmp_path):
+    safe_path = tmp_path
+    granule_path = tmp_path / "GRANULE" / "L2A"
+
+    band_path_10m = granule_path / "IMG_DATA" / "R10m"
+    band_file_B04_10m = band_path_10m / "TEST_B04_10m.jp2"
+    band_path_10m.mkdir(parents=True, exist_ok=True)
+    band_file_B04_10m.touch()
+
+    band_path_20m = granule_path / "IMG_DATA" / "R20m"
+    band_file_B04_20m = band_path_20m / "TEST_B04_20m.jp2"
+    band_path_20m.mkdir(parents=True, exist_ok=True)
+    band_file_B04_20m.touch()
+
+    return {
+        "safe_path": safe_path,
+        "granule_path": granule_path,
+        "band_path_10m": band_path_10m,
+        "band_path_20m": band_path_20m,
+        "band_file_B04_10m": band_file_B04_10m,
+        "band_file_B04_20m": band_file_B04_20m,
+    }
+
+@pytest.fixture
 def toy_dataset(project_root):
     dataset_dir = (
         project_root

@@ -1,5 +1,10 @@
+from hashlib import sha256
+
 from opencropphenotyping.io import read_band
 
+
+def file_hash(path):
+    return sha256(path.read_bytes()).hexdigest()
 
 def test_toy_dataset(project_root):
     toy_dir = project_root / "data" / "raw"  / "toy_datasets"  / "toy_dataset_1"

@@ -1,8 +1,9 @@
 from pathlib import Path
-from matplotlib.figure import Figure
+
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+from matplotlib.figure import Figure
 from PIL import Image
 from rasterio.enums import Resampling
 from rasterio.transform import from_origin
@@ -212,14 +213,15 @@ def find_band(
 
     else:
         # Simplified dataset: search directly in the input directory at given resolution
-        if resolution is not None:
-            band_files = list(
-                input_dir.glob(f"*{band}*_{resolution}m.tif")
+        band_files = [
+            path
+            for path in input_dir.glob("*.tif")
+            if band.lower() in path.name.lower()
+            and (
+                resolution is None
+                or f"_{resolution}m" in path.name.lower()
             )
-        else:
-            band_files = list(
-                input_dir.glob(f"*{band}*.tif")
-            )
+        ]
 
     if len(band_files) == 0:
         raise FileNotFoundError(
@@ -283,6 +285,28 @@ def write_png(image: np.ndarray, output_path: Path) -> None:
         raise ValueError("Raster image must be a 3D array.")
 
     plt.imsave(output_path, image)
+
+def write_grayscale_png(
+    image: np.ndarray,
+    output_path: Path,
+) -> None:
+    """
+    Save a 2D raster image as a grayscale PNG.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        2D array of raster values to save.
+    output_path : Path
+        Path to the output PNG file.
+    """
+    if image.ndim != 2:
+        raise ValueError("Grayscale image must be a 2D array.")
+
+    if not output_path.parent.exists():
+        output_path.parent.mkdir(parents=True)
+
+    Image.fromarray(image).save(output_path)
 
 def write_figure(
     fig: Figure,

@@ -15,8 +15,8 @@ from opencropphenotyping.io import (
     resample_raster,
     select_bands,
     write_georeferenced_tiff,
-    write_raster_as_png,
     write_raster,
+    write_raster_as_png,
 )
 
 
@@ -206,9 +206,15 @@ def test_select_bands_empty_band():
     ):
         select_bands(catalog, resolution=10)
 
-def test_find_band_success(safe_dir):
+def test_find_band_success(tmp_path):
+    granule_path = tmp_path / "GRANULE" / "L2A"
+    tmp_band_path = granule_path / "IMG_DATA" / "R10m"
+    tmp_band_file = tmp_band_path / "TEST_B04_10m.jp2"
+    tmp_band_path.mkdir(parents=True, exist_ok=True)
+    tmp_band_file.touch()
+    
     # Test find_band function
-    band_path = find_band(safe_dir, "B04", resolution = 10)
+    band_path = find_band(tmp_path, "B04", resolution = 10)
     assert band_path.exists(), "Band path does not exist."
     assert band_path.name.endswith("_B04_10m.jp2"), "Band path does not point to the correct file."
 
@@ -217,19 +223,47 @@ def test_find_band_wrong_directory():
     with pytest.raises(FileNotFoundError):
         find_band(Path("C:/wrong/path"), "B04", resolution = 10)  # Assuming this directory does not exist
 
-def test_find_band_unknown_band(safe_dir):
+def test_find_band_unknown_band(safe_toy_dataset):
     # Test find_band function with an unknown band
     with pytest.raises(FileNotFoundError):
-        find_band(safe_dir, "B99", resolution = 10)  # Assuming B99 does not exist in the structure
+        find_band(safe_toy_dataset["safe_path"], "B99", resolution = 10)  # Assuming B99 does not exist in the structure
 
-def test_find_band_multiple_bands(safe_dir):
+def test_find_band_multiple_bands(safe_toy_dataset):
     # Test find_band function with multiple bands found
     with pytest.raises(FileExistsError):
-        find_band(safe_dir, "B04", resolution = None)
+        find_band(safe_toy_dataset["safe_path"], "B04", resolution = None)
 
-def test_read_band_success(safe_dir):
+def test_find_band_simplified_dataset_case_insensitive(tmp_path):
+    band_file = tmp_path / "toy_image_b03_10m.tif"
+    band_file.touch()
+
+    result = find_band(
+        tmp_path,
+        "B03",
+        resolution=10,
+    )
+
+    assert result == band_file
+    
+def test_read_band_success(tmp_path):
     # Test read_band function
-    band_path = find_band(safe_dir, "B04", resolution = 10)
+    band_path = tmp_path / "test.tif"
+
+    data = np.array([[1, 2], [3, 4]], dtype=np.uint16)
+
+    profile = {
+        "driver": "JP2OpenJPEG",
+        "height": 2,
+        "width": 2,
+        "count": 1,
+        "dtype": "uint16",
+        "crs": "EPSG:4326",
+        "transform": from_origin(0, 0, 1, 1),
+    }
+
+    with rasterio.open(band_path, "w", **profile) as dst:
+        dst.write(data, 1)
+
     image, profile = read_band(band_path)
     assert isinstance(image, np.ndarray), "Image is not a numpy array."
     assert image.ndim == 2, "Image is not 2D."
