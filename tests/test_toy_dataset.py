@@ -23,12 +23,7 @@ def test_toy_dataset(project_root):
     red, profile_red = read_band(b04)
     red_edge, profile_red_edge = read_band(b05)
     nir, profile_nir = read_band(b08)
-    print("RED EDGE HASH:", file_hash(b05))
-    print("NIR HASH:", file_hash(b08))
-    print("RED EDGE PATH:", b05)
-    print("NIR PATH:", b08)
-    print("RED EDGE:", profile_red_edge["transform"])
-    print("NIR:", profile_nir["transform"])
+
     assert red.shape == nir.shape
     assert red.dtype == nir.dtype
     assert green.shape == nir.shape
