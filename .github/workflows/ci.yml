@@ -30,4 +30,9 @@ jobs:
           python -c "from pathlib import Path; p=Path('data/raw/toy_datasets/toy_dataset_1'); print('Dataset exists:', p.exists()); print(*[x.name for x in p.iterdir()], sep='\n')"
           
       - name: Run tests
-        run: pytest
+        run: pytest --cov=opencropphenotyping --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
