@@ -25,5 +25,9 @@ jobs:
       - name: Run Ruff
         run: ruff check .
 
+      - name: Check test data
+        run: |
+          python -c "from pathlib import Path; p=Path('data/raw/toy_datasets/toy_dataset_1'); print('Dataset exists:', p.exists()); print(*[x.name for x in p.iterdir()], sep='\n')"
+          
       - name: Run tests
         run: pytest

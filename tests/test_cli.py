@@ -39,7 +39,14 @@ def test_process_cli(tmp_path, project_root):
         ],
     )
 
-    assert result.exit_code == 0
+    print("exit code:", result.exit_code)
+    print("exception:", repr(result.exception))
+    print("output:", repr(result.output))
+
+    assert result.exit_code == 0, (
+        f"CLI failed with exception: {result.exception!r}\n"
+        f"Output:\n{result.output}"
+    )
     assert "Processing completed successfully." in result.output
     assert (output_dir / "indices").exists()
     assert (output_dir / "indices" / "ndvi.tif").exists()
