@@ -233,6 +233,18 @@ def test_find_band_multiple_bands(safe_toy_dataset):
     with pytest.raises(FileExistsError):
         find_band(safe_toy_dataset["safe_path"], "B04", resolution = None)
 
+def test_find_band_simplified_dataset_case_insensitive(tmp_path):
+    band_file = tmp_path / "toy_image_b03_10m.tif"
+    band_file.touch()
+
+    result = find_band(
+        tmp_path,
+        "B03",
+        resolution=10,
+    )
+
+    assert result == band_file
+    
 def test_read_band_success(tmp_path):
     # Test read_band function
     band_path = tmp_path / "test.tif"
