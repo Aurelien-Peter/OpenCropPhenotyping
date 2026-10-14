@@ -1,0 +1,6 @@
+services:
+  opencropphenotyping:
+    build:
+      context: .
+    volumes:
+      - ./data:/data

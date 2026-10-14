@@ -278,3 +278,10 @@ Thumbs.db
 # =========================
 
 *.aux.xml
+
+# =========================
+# DOCKER
+# =========================
+
+/data/docker_test
+requirements.txt
