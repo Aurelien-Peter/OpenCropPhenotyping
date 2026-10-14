@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/ci.yml/badge.svg)](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/Aurelien-Peter/OpenCropPhenotyping/graph/badge.svg?token=7SAC1M1VY5)](https://codecov.io/github/Aurelien-Peter/OpenCropPhenotyping)
-![PyPI Version][(https://img.shields.io/pypi/v/opencropphenotyping)](https://pypi.org/project/opencropphenotyping/)
+[![PyPI Version](https://img.shields.io/pypi/v/opencropphenotyping)](https://pypi.org/project/opencropphenotyping/)
 [![Python versions](https://img.shields.io/pypi/pyversions/opencropphenotyping)](https://pypi.org/project/opencropphenotyping/)
-[![Docker publish](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/publish-docker.yml)
+[![Docker publish](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/publish_docker.yml)
 
 **An open-source Python framework for high-throughput crop phenotyping using drone and satellite imagery.**
 
