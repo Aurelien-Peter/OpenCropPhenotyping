@@ -2,14 +2,22 @@
 
 [![CI](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/ci.yml/badge.svg)](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/Aurelien-Peter/OpenCropPhenotyping/graph/badge.svg?token=7SAC1M1VY5)](https://codecov.io/github/Aurelien-Peter/OpenCropPhenotyping)
+![PyPI Version][(https://img.shields.io/pypi/v/opencropphenotyping)](https://pypi.org/project/opencropphenotyping/)
+[![Python versions](https://img.shields.io/pypi/pyversions/opencropphenotyping)](https://pypi.org/project/opencropphenotyping/)
+[![Docker publish](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/Aurelien-Peter/OpenCropPhenotyping/actions/workflows/publish-docker.yml)
 
 **An open-source Python framework for high-throughput crop phenotyping using drone and satellite imagery.**
 
 ## About the project
 
 OpenCropPhenotyping is an open-source project dedicated to reproducible high-throughput crop phenotyping using remote sensing data.
+
 The objective is to provide reproducible workflows to extract agronomic traits from UAV and Sentinel-2 imagery, from raw image preprocessing to trait extraction, statistical analysis and visualization. 
+
+
 The project currently combines multispectral Sentinel-2 processing with classical RGB UAV image analysis. The first UAV developments focus on crop-row detection, vegetation segmentation and plant-position analysis, with the objective of progressively extending the framework toward more advanced high-throughput phenotyping workflows.
+
+The project includes automated testing, continuous integration, code coverage monitoring, and package distribution through PyPI. Docker support provides a reproducible runtime environment for command-line processing.
 
 ## Current Features:
 **Sentinel-2**
@@ -27,8 +35,6 @@ The project currently combines multispectral Sentinel-2 processing with classica
 - [X] Processing results export
 - [X] Batch processing of multiple Sentinel-2 products
 - [X] Visualization
-- [X] Unit Tests
-- [X] Command-Line Interface (CLI)
 
 **UAV RGB**
 - [X] RGB UAV imagery reading
@@ -43,11 +49,18 @@ The project currently combines multispectral Sentinel-2 processing with classica
 - [X] Experimental plot metadata integration
 - [X] UAV RGB workflow demonstration
 
-**Software quality**
-- [X] Visualization utilities
-- [X] Unit tests
-- [X] Code quality checks with Ruff
+**Software quality & distribution**
+
+- [X] Unit and integration tests with pytest
+- [X] Automated code quality checks with Ruff
+- [X] Automated CI with GitHub Actions
+- [X] Test coverage monitoring with pytest-cov and Codecov
+- [X] Python package build and distribution through PyPI
+- [X] Docker containerization
+- [X] Automated Docker image publishing through GitHub Actions
+- [X] Dependency update management with Dependabot
 - [X] Reproducible toy datasets
+- [X] Command-line interface (CLI)
 
 ## Case studies
 
@@ -651,6 +664,113 @@ opencropphenotyping batch-uav \
 ```
 
 The CLI follows the same processing pipeline as the Python API and can therefore be used for reproducible processing of individual UAV datasets or complete directories of datasets.
+
+## Docker
+
+OpenCropPhenotyping is available as a Docker image, providing a reproducible Linux environment with the package and its dependencies pre-installed.
+
+Docker images are published to GitHub Container Registry (GHCR) when a new version is released.
+
+### Requirements
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine
+- UAV or Sentinel-2 input data (toy datasets are included in the image)
+- A published OpenCropPhenotyping Docker image
+
+### Download the image
+
+Pull a specific released version:
+
+```bash
+docker pull ghcr.io/aurelien-peter/opencropphenotyping:VERSION
+```
+
+Replace `VERSION` with an available release tag, such as `0.2.2`.
+
+### Check the installation
+
+Display the available CLI commands:
+
+```bash
+docker run --rm ghcr.io/aurelien-peter/opencropphenotyping:VERSION --help
+```
+
+Available commands include:
+
+- `process`: process a single Sentinel-2 product.
+- `batch`: process multiple Sentinel-2 products.
+- `segment-uav`: process a single UAV RGB dataset.
+- `batch-uav`: process multiple UAV datasets.
+
+### Process Sentinel-2 imagery
+
+Input data and output directories are provided through a bind mount. In the following example, a local `data` directory is mounted at `/data` inside the container.
+
+```bash
+docker run --rm \
+  --mount type=bind,source=/absolute/path/to/data,target=/data \
+  ghcr.io/aurelien-peter/opencropphenotyping:VERSION \
+  process \
+  --input-dir /data/raw/sentinel_product \
+  --output-dir /data/results \
+  --processed-dir /data/processed \
+  --indices ndvi \
+  --ndvi-threshold 0.3 \
+  --resolution 10
+```
+
+Replace `/absolute/path/to/data` with the absolute path to the local directory containing your data.
+
+The input path must point to a Sentinel-2 product supported by the pipeline. Results written under `/data` are available in the corresponding local directory after the container exits.
+
+### Process UAV RGB imagery
+
+A single UAV dataset requires an RGB image, its georeferenced GeoTIFF and a GeoPackage describing the experimental plot.
+
+```bash
+docker run --rm \
+  --mount type=bind,source=/absolute/path/to/data,target=/data \
+  ghcr.io/aurelien-peter/opencropphenotyping:VERSION \
+  segment-uav \
+  --image /data/uav/image.png \
+  --geotiff /data/uav/image_georef.tif \
+  --geopackage /data/uav/plots.gpkg \
+  --output-dir /data/results/uav
+```
+
+To process several UAV datasets, use the `batch-uav` command. Each dataset must be stored in its own subdirectory containing the required input files.
+
+```bash
+docker run --rm \
+  --mount type=bind,source=/absolute/path/to/data,target=/data \
+  ghcr.io/aurelien-peter/opencropphenotyping:VERSION \
+  batch-uav \
+  --input-dir /data/uav \
+  --output-dir /data/results/uav
+```
+
+### Build the image locally
+
+To build the Docker image from the source code instead of pulling a published release, clone the repository and run:
+
+```bash
+git clone https://github.com/Aurelien-Peter/OpenCropPhenotyping.git
+cd OpenCropPhenotyping
+
+docker build -t opencropphenotyping:local .
+```
+
+Check the local image:
+
+```bash
+docker run --rm opencropphenotyping:local --help
+```
+
+### Notes
+
+- The container is designed for command-line processing jobs. It starts, executes the requested command and exits when the job is complete.
+- Use a bind mount for both input data and output directories to keep files accessible outside the container.
+
 
 ## Contributing 
 
