@@ -10,6 +10,7 @@ from opencropphenotyping.io import (
     build_band_catalog,
     find_band,
     find_granule,
+    image_tiling,
     read_band,
     read_rgb_image,
     resample_raster,
@@ -568,3 +569,40 @@ def test_write_georeferenced_tiff_grayscale(tmp_path):
             src.read(1),
             image,
         )
+
+def test_image_tiling_grayscale():
+    image = np.arange(35).reshape(5, 7)
+
+    tiles = image_tiling(image, tile_size=3)
+
+    assert len(tiles) == 6
+
+    assert [tile.shape for tile in tiles] == [
+        (3, 3),
+        (3, 3),
+        (3, 1),
+        (2, 3),
+        (2, 3),
+        (2, 1),
+    ]
+
+def test_image_tiling_rgb():
+    image = np.zeros((4, 4, 3), dtype=np.uint8)
+
+    tiles = image_tiling(image, tile_size=2)
+
+    assert len(tiles) == 4
+    assert all(tile.shape == (2, 2, 3) for tile in tiles)
+
+@pytest.mark.parametrize("tile_size", [0, -1])
+def test_image_tiling_invalid_tile_size(tile_size):
+    image = np.zeros((10, 10))
+
+    with pytest.raises(ValueError, match="positive"):
+        image_tiling(image, tile_size)
+
+def test_image_tiling_invalid_dimensions():
+    image = np.zeros((10,))
+
+    with pytest.raises(ValueError, match="2D or 3D"):
+        image_tiling(image, tile_size=5)
