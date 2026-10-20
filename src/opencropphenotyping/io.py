@@ -618,7 +618,7 @@ def tile_raster(
     list[Path]
         Paths to the generated GeoTIFF tiles.
     """
-    if not isinstance(
+    if isinstance(tile_size, bool) or not isinstance(
         tile_size, (int, np.integer)
     ):
         raise TypeError("tile_size must be an integer.")
