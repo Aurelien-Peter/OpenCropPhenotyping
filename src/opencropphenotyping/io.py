@@ -8,6 +8,7 @@ from PIL import Image
 from rasterio.enums import Resampling
 from rasterio.transform import from_origin
 from rasterio.warp import reproject
+from rasterio.windows import Window
 
 
 def build_band_catalog(
@@ -575,7 +576,7 @@ def image_tiling(
     if image.ndim not in (2, 3):
         raise ValueError("image must be a 2D or 3D array.")
 
-    if isinstance(tile_size, bool) or not isinstance(
+    if not isinstance(
         tile_size, (int, np.integer)
     ):
         raise TypeError("tile_size must be an integer.")
@@ -592,3 +593,81 @@ def image_tiling(
             tiles.append(tile)
 
     return tiles
+
+def tile_raster(
+    input_path: Path,
+    output_dir: Path,
+    tile_size: int,
+) -> list[Path]:
+    """
+    Split a georeferenced raster into square GeoTIFF tiles.
+
+    Edge tiles may be smaller than tile_size.
+
+    Parameters
+    ----------
+    input_path : Path
+        Path to the input raster.
+    output_dir : Path
+        Directory where the tiles will be saved.
+    tile_size : int
+        Size of the square tiles in pixels.
+
+    Returns
+    -------
+    list[Path]
+        Paths to the generated GeoTIFF tiles.
+    """
+    if not isinstance(
+        tile_size, (int, np.integer)
+    ):
+        raise TypeError("tile_size must be an integer.")
+
+    if tile_size <= 0:
+        raise ValueError("tile_size must be positive.")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_paths = []
+
+    with rasterio.open(input_path) as src:
+        for row_off in range(0, src.height, tile_size):
+            for col_off in range(0, src.width, tile_size):
+                width = min(tile_size, src.width - col_off)
+                height = min(tile_size, src.height - row_off)
+
+                window = Window(
+                    col_off=col_off,
+                    row_off=row_off,
+                    width=width,
+                    height=height,
+                )
+
+                tile_data = src.read(window=window)
+
+                tile_profile = src.profile.copy()
+                tile_profile.update(
+                    driver="GTiff",
+                    width=width,
+                    height=height,
+                    transform=src.window_transform(window),
+                )
+
+                # Avoid inheriting incompatible source block dimensions.
+                tile_profile.pop("blockxsize", None)
+                tile_profile.pop("blockysize", None)
+
+                tile_path = output_dir / (
+                    f"{input_path.stem}"
+                    f"_r{row_off:05d}_c{col_off:05d}.tif"
+                )
+
+                with rasterio.open(
+                    tile_path,
+                    "w",
+                    **tile_profile,
+                ) as dst:
+                    dst.write(tile_data)
+
+                output_paths.append(tile_path)
+
+    return output_paths
