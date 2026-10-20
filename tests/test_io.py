@@ -5,15 +5,18 @@ import pytest
 import rasterio
 from PIL import Image
 from rasterio.transform import from_origin
+from rasterio.windows import Window
 
 from opencropphenotyping.io import (
     build_band_catalog,
     find_band,
     find_granule,
+    image_tiling,
     read_band,
     read_rgb_image,
     resample_raster,
     select_bands,
+    tile_raster,
     write_georeferenced_tiff,
     write_raster,
     write_raster_as_png,
@@ -567,4 +570,132 @@ def test_write_georeferenced_tiff_grayscale(tmp_path):
         np.testing.assert_array_equal(
             src.read(1),
             image,
+        )
+
+def test_image_tiling_grayscale():
+    image = np.arange(35).reshape(5, 7)
+
+    tiles = image_tiling(image, tile_size=3)
+
+    assert len(tiles) == 6
+
+    assert [tile.shape for tile in tiles] == [
+        (3, 3),
+        (3, 3),
+        (3, 1),
+        (2, 3),
+        (2, 3),
+        (2, 1),
+    ]
+
+def test_image_tiling_rgb():
+    image = np.zeros((4, 4, 3), dtype=np.uint8)
+
+    tiles = image_tiling(image, tile_size=2)
+
+    assert len(tiles) == 4
+    assert all(tile.shape == (2, 2, 3) for tile in tiles)
+
+@pytest.mark.parametrize("tile_size", [0, -1])
+def test_image_tiling_invalid_tile_size(tile_size):
+    image = np.zeros((10, 10))
+
+    with pytest.raises(ValueError, match="positive"):
+        image_tiling(image, tile_size)
+
+def test_image_tiling_invalid_dimensions():
+    image = np.zeros((10,))
+
+    with pytest.raises(ValueError, match="2D or 3D"):
+        image_tiling(image, tile_size=5)
+
+def test_tile_raster_preserves_data_and_georeferencing(tmp_path):
+    # Create a small synthetic GeoTIFF.
+    input_path = tmp_path / "test_raster.tif"
+    output_dir = tmp_path / "tiles"
+
+    image = np.arange(35, dtype=np.uint16).reshape(5, 7)
+    transform = from_origin(340000, 4840000, 10, 10)
+
+    profile = {
+        "driver": "GTiff",
+        "width": 7,
+        "height": 5,
+        "count": 1,
+        "dtype": image.dtype,
+        "crs": "EPSG:32631",
+        "transform": transform,
+    }
+
+    with rasterio.open(input_path, "w", **profile) as dst:
+        dst.write(image, 1)
+
+    # Split the raster into tiles of 3 x 3 pixels.
+    tiles = tile_raster(
+        input_path=input_path,
+        output_dir=output_dir,
+        tile_size=3,
+    )
+
+    # Check the number of tiles and their dimensions.
+    expected_tiles = [
+        (0, 0, 3, 3),
+        (0, 3, 3, 3),
+        (0, 6, 3, 1),
+        (3, 0, 2, 3),
+        (3, 3, 2, 3),
+        (3, 6, 2, 1),
+    ]
+
+    assert len(tiles) == len(expected_tiles)
+    assert all(path.exists() for path in tiles)
+
+    with rasterio.open(input_path) as src:
+        for tile_path, (row, col, height, width) in zip(
+            tiles, expected_tiles
+        ):
+            window = Window(
+                col_off=col,
+                row_off=row,
+                width=width,
+                height=height,
+            )
+
+            with rasterio.open(tile_path) as tile:
+                # Check dimensions and spatial metadata.
+                assert tile.height == height
+                assert tile.width == width
+                assert tile.crs == src.crs
+                assert tile.transform == src.window_transform(window)
+
+                # Check that no pixel values were changed.
+                expected_data = image[
+                    row:row + height,
+                    col:col + width,
+                ]
+
+                np.testing.assert_array_equal(
+                    tile.read(1),
+                    expected_data,
+                )
+
+@pytest.mark.parametrize(
+    ("tile_size", "exception"),
+    [
+        (0, ValueError),
+        (-1, ValueError),
+        (1.5, TypeError),
+        (True, TypeError),
+    ],
+)
+def test_tile_raster_invalid_tile_size(
+    tmp_path,
+    tile_size,
+    exception,
+):
+    with pytest.raises(exception):
+        tile_raster(
+            input_path=tmp_path / "missing.tif",
+            output_dir=tmp_path / "tiles",
+            tile_size=tile_size,
         )
