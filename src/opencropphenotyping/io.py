@@ -1,11 +1,15 @@
+import math
+from contextlib import ExitStack
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+from affine import Affine
 from matplotlib.figure import Figure
 from PIL import Image
 from rasterio.enums import Resampling
+from rasterio.merge import merge
 from rasterio.transform import from_origin
 from rasterio.warp import reproject
 from rasterio.windows import Window
@@ -671,3 +675,182 @@ def tile_raster(
                 output_paths.append(tile_path)
 
     return output_paths
+
+def validate_georeferenced_raster(
+    input_path: Path,
+) -> dict[str, object]:
+    """
+    Validate the geospatial metadata of a raster.
+
+    Parameters
+    ----------
+    input_path : Path
+        Path to the input raster.
+
+    Returns
+    -------
+    dict[str, object]
+        Raster metadata including CRS, transform, resolution and bounds.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the input file does not exist.
+    ValueError
+        If the raster has missing or invalid geospatial metadata.
+    """
+    if not input_path.is_file():
+        raise FileNotFoundError(f"Raster file not found: {input_path}")
+
+    with rasterio.open(input_path) as src:
+        if src.crs is None:
+            raise ValueError("Raster has no CRS.")
+
+        transform = src.transform
+
+        if transform == Affine.identity():
+            raise ValueError(
+                "Raster has an identity transform; "
+                "georeferencing may be missing."
+            )
+
+        transform_values = (
+            transform.a,
+            transform.b,
+            transform.c,
+            transform.d,
+            transform.e,
+            transform.f,
+        )
+
+        if not all(math.isfinite(value) for value in transform_values):
+            raise ValueError("Raster transform contains non-finite values.")
+
+        determinant = transform.a * transform.e - transform.b * transform.d
+
+        if determinant == 0:
+            raise ValueError("Raster transform is singular.")
+
+        resolution = src.res
+
+        if not all(math.isfinite(value) and value > 0 for value in resolution):
+            raise ValueError("Raster resolution must be positive and finite.")
+
+        bounds = src.bounds
+
+        bounds_values = (
+            bounds.left,
+            bounds.bottom,
+            bounds.right,
+            bounds.top,
+        )
+
+        if not all(math.isfinite(value) for value in bounds_values):
+            raise ValueError("Raster bounds contain non-finite values.")
+
+        if bounds.left >= bounds.right or bounds.bottom >= bounds.top:
+            raise ValueError("Raster spatial bounds are invalid.")
+
+        return {
+            "path": input_path,
+            "crs": src.crs,
+            "transform": transform,
+            "resolution": resolution,
+            "bounds": bounds,
+            "width": src.width,
+            "height": src.height,
+            "count": src.count,
+        }
+
+def merge_raster_tiles(
+    tile_paths: list[Path],
+    output_path: Path,
+) -> None:
+    """
+    Merge multiple raster tiles into a single GeoTIFF.
+
+    Parameters
+    ----------
+    tile_paths : list[Path]
+        List of paths to the raster tiles to merge.
+    output_path : Path
+        Path to the output merged raster.
+
+    Returns
+    -------
+    ValueError
+        If no tiles are provided or their metadata are incompatible.
+    FileNotFoundError
+        If a tile does not exist.
+    """
+    if not tile_paths:
+        raise ValueError("No tile paths provided for merging.")
+
+    # Ensure all tile paths exist
+    for tile_path in tile_paths:
+        if not tile_path.is_file():
+            raise FileNotFoundError(f"Tile file not found: {tile_path}")
+
+    with ExitStack() as stack:
+        sources = [
+            stack.enter_context(rasterio.open(tile_path))
+            for tile_path in tile_paths
+        ]
+
+        reference = sources[0]
+
+        # Check compatibility between tiles
+        for source in sources[1:]:
+            if source.crs != reference.crs:
+                raise ValueError("All tiles must have the same CRS.")
+
+            if source.count != reference.count:
+                raise ValueError(
+                    "All tiles must have the same number of bands."
+                )
+
+            if source.dtypes != reference.dtypes:
+                raise ValueError("All tiles must have the same data types.")
+
+            if not np.allclose(
+                (
+                    source.transform.a,
+                    source.transform.b,
+                    source.transform.d,
+                    source.transform.e,
+                ),
+                (
+                    reference.transform.a,
+                    reference.transform.b,
+                    reference.transform.d,
+                    reference.transform.e,
+                ),
+            ):
+                raise ValueError(
+                    "All tiles must have compatible spatial transforms."
+                )
+
+        # Reconstruct the raster using spatial metadata
+        mosaic, transform = merge(sources)
+
+        # Update the output metadata
+        profile = reference.profile.copy()
+        profile.update(
+            driver="GTiff",
+            width=mosaic.shape[2],
+            height=mosaic.shape[1],
+            transform=transform,
+        )
+
+        with rasterio.open(output_path, "w", **profile) as dst:
+            dst.write(mosaic)
+            dst.colorinterp = reference.colorinterp
+
+            for band_index, description in enumerate(
+                reference.descriptions,
+                start=1,
+            ):
+                if description:
+                    dst.set_band_description(band_index, description)
+
+            dst.update_tags(**reference.tags())

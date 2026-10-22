@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import rasterio
+from affine import Affine
 from PIL import Image
 from rasterio.transform import from_origin
 from rasterio.windows import Window
@@ -12,11 +13,13 @@ from opencropphenotyping.io import (
     find_band,
     find_granule,
     image_tiling,
+    merge_raster_tiles,
     read_band,
     read_rgb_image,
     resample_raster,
     select_bands,
     tile_raster,
+    validate_georeferenced_raster,
     write_georeferenced_tiff,
     write_raster,
     write_raster_as_png,
@@ -698,4 +701,149 @@ def test_tile_raster_invalid_tile_size(
             input_path=tmp_path / "missing.tif",
             output_dir=tmp_path / "tiles",
             tile_size=tile_size,
+        )
+
+def test_validate_georeferenced_raster_success(tmp_path):
+    raster_path = tmp_path / "valid.tif"
+
+    profile = {
+        "driver": "GTiff",
+        "width": 5,
+        "height": 4,
+        "count": 1,
+        "dtype": "uint8",
+        "crs": "EPSG:32631",
+        "transform": from_origin(340000, 4840000, 10, 10),
+    }
+
+    with rasterio.open(raster_path, "w", **profile) as dst:
+        dst.write(np.zeros((4, 5), dtype=np.uint8), 1)
+
+    metadata = validate_georeferenced_raster(raster_path)
+
+    assert metadata["crs"] == rasterio.crs.CRS.from_epsg(32631)
+    assert metadata["resolution"] == (10.0, 10.0)
+    assert metadata["width"] == 5
+    assert metadata["height"] == 4
+
+
+def test_validate_georeferenced_raster_missing_crs(tmp_path):
+    raster_path = tmp_path / "missing_crs.tif"
+
+    profile = {
+        "driver": "GTiff",
+        "width": 5,
+        "height": 4,
+        "count": 1,
+        "dtype": "uint8",
+        "transform": from_origin(340000, 4840000, 10, 10),
+    }
+
+    with rasterio.open(raster_path, "w", **profile) as dst:
+        dst.write(np.zeros((4, 5), dtype=np.uint8), 1)
+
+    with pytest.raises(ValueError, match="no CRS"):
+        validate_georeferenced_raster(raster_path)
+
+
+def test_validate_georeferenced_raster_identity_transform(tmp_path):
+    raster_path = tmp_path / "identity.tif"
+
+    profile = {
+        "driver": "GTiff",
+        "width": 5,
+        "height": 4,
+        "count": 1,
+        "dtype": "uint8",
+        "crs": "EPSG:32631",
+        "transform": Affine.identity(),
+    }
+
+    with rasterio.open(raster_path, "w", **profile) as dst:
+        dst.write(np.zeros((4, 5), dtype=np.uint8), 1)
+
+    with pytest.raises(ValueError, match="identity transform"):
+        validate_georeferenced_raster(raster_path)
+
+def test_merge_raster_tiles(tmp_path):
+    """Test merging adjacent raster tiles and preserving georeferencing."""
+    tile_1_path = tmp_path / "tile_1.tif"
+    tile_2_path = tmp_path / "tile_2.tif"
+    output_path = tmp_path / "merged.tif"
+
+    # Create two adjacent tiles with known pixel values
+    tile_1_data = np.array(
+        [[[1, 2, 3],
+          [4, 5, 6]]],
+        dtype=np.uint16,
+    )
+
+    tile_2_data = np.array(
+        [[[7, 8, 9],
+          [10, 11, 12]]],
+        dtype=np.uint16,
+    )
+
+    transform_1 = from_origin(500000, 1000000, 1, 1)
+    transform_2 = from_origin(500003, 1000000, 1, 1)
+
+    # Write the first tile
+    with rasterio.open(
+        tile_1_path,
+        "w",
+        driver="GTiff",
+        height=2,
+        width=3,
+        count=1,
+        dtype=tile_1_data.dtype,
+        crs="EPSG:32631",
+        transform=transform_1,
+    ) as dst:
+        dst.write(tile_1_data)
+
+    # Write the second tile
+    with rasterio.open(
+        tile_2_path,
+        "w",
+        driver="GTiff",
+        height=2,
+        width=3,
+        count=1,
+        dtype=tile_2_data.dtype,
+        crs="EPSG:32631",
+        transform=transform_2,
+    ) as dst:
+        dst.write(tile_2_data)
+
+    # Merge the two tiles
+    merge_raster_tiles(
+        tile_paths=[tile_1_path, tile_2_path],
+        output_path=output_path,
+    )
+
+    expected_data = np.concatenate(
+        [tile_1_data, tile_2_data],
+        axis=2,
+    )
+
+    # Check the reconstructed raster
+    with rasterio.open(output_path) as merged:
+        assert merged.width == 6
+        assert merged.height == 2
+        assert merged.count == 1
+        assert merged.crs == rasterio.crs.CRS.from_epsg(32631)
+        assert merged.transform == transform_1
+        np.testing.assert_array_equal(
+            merged.read(),
+            expected_data,
+        )
+
+def test_merge_raster_tiles_empty_list(tmp_path):
+    """Test that merging an empty list raises an error."""
+    output_path = tmp_path / "merged.tif"
+
+    with pytest.raises(ValueError, match="No tile paths provided for merging."):
+        merge_raster_tiles(
+            tile_paths=[],
+            output_path=output_path,
         )
