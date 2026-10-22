@@ -1,4 +1,5 @@
 import math
+from contextlib import ExitStack
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ from affine import Affine
 from matplotlib.figure import Figure
 from PIL import Image
 from rasterio.enums import Resampling
+from rasterio.merge import merge
 from rasterio.transform import from_origin
 from rasterio.warp import reproject
 from rasterio.windows import Window
@@ -759,3 +761,96 @@ def validate_georeferenced_raster(
             "height": src.height,
             "count": src.count,
         }
+
+def merge_raster_tiles(
+    tile_paths: list[Path],
+    output_path: Path,
+) -> None:
+    """
+    Merge multiple raster tiles into a single GeoTIFF.
+
+    Parameters
+    ----------
+    tile_paths : list[Path]
+        List of paths to the raster tiles to merge.
+    output_path : Path
+        Path to the output merged raster.
+
+    Returns
+    -------
+    ValueError
+        If no tiles are provided or their metadata are incompatible.
+    FileNotFoundError
+        If a tile does not exist.
+    """
+    if not tile_paths:
+        raise ValueError("No tile paths provided for merging.")
+
+    # Ensure all tile paths exist
+    for tile_path in tile_paths:
+        if not tile_path.is_file():
+            raise FileNotFoundError(f"Tile file not found: {tile_path}")
+
+    with ExitStack() as stack:
+        sources = [
+            stack.enter_context(rasterio.open(tile_path))
+            for tile_path in tile_paths
+        ]
+
+        reference = sources[0]
+
+        # Check compatibility between tiles
+        for source in sources[1:]:
+            if source.crs != reference.crs:
+                raise ValueError("All tiles must have the same CRS.")
+
+            if source.count != reference.count:
+                raise ValueError(
+                    "All tiles must have the same number of bands."
+                )
+
+            if source.dtypes != reference.dtypes:
+                raise ValueError("All tiles must have the same data types.")
+
+            if not np.allclose(
+                (
+                    source.transform.a,
+                    source.transform.b,
+                    source.transform.d,
+                    source.transform.e,
+                ),
+                (
+                    reference.transform.a,
+                    reference.transform.b,
+                    reference.transform.d,
+                    reference.transform.e,
+                ),
+            ):
+                raise ValueError(
+                    "All tiles must have compatible spatial transforms."
+                )
+
+        # Reconstruct the raster using spatial metadata
+        mosaic, transform = merge(sources)
+
+        # Update the output metadata
+        profile = reference.profile.copy()
+        profile.update(
+            driver="GTiff",
+            width=mosaic.shape[2],
+            height=mosaic.shape[1],
+            transform=transform,
+        )
+
+        with rasterio.open(output_path, "w", **profile) as dst:
+            dst.write(mosaic)
+            dst.colorinterp = reference.colorinterp
+
+            for band_index, description in enumerate(
+                reference.descriptions,
+                start=1,
+            ):
+                if description:
+                    dst.set_band_description(band_index, description)
+
+            dst.update_tags(**reference.tags())
