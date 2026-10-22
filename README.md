@@ -48,6 +48,9 @@ The project includes automated testing, continuous integration, code coverage mo
 - [X] Georeferenced UAV Image support
 - [X] Experimental plot metadata integration
 - [X] UAV RGB workflow demonstration
+- [x] Georeferenced raster metadata validation
+- [x] GeoTIFF raster tiling with geospatial metadata preservation
+- [x] Reconstruction of raster mosaics from tiles
 
 **Software quality & distribution**
 
@@ -664,6 +667,20 @@ opencropphenotyping batch-uav \
 ```
 
 The CLI follows the same processing pipeline as the Python API and can therefore be used for reproducible processing of individual UAV datasets or complete directories of datasets.
+
+## Georeferenced raster support and tiling
+
+OpenCropPhenotyping provides utilities to validate georeferenced raster metadata, split GeoTIFF rasters into smaller tiles, and reconstruct a raster mosaic from these tiles.
+
+These utilities support the handling of large UAV orthomosaics while preserving their spatial reference information.
+
+### Available functions
+
+- `validate_georeferenced_raster()`: checks the consistency of raster georeferencing metadata.
+- `tile_raster()`: divides a raster into smaller tiles while preserving their spatial metadata.
+- `merge_raster_tiles()`: reconstructs a raster mosaic from georeferenced tiles.
+
+The functions operate on existing georeferenced rasters. They do not generate orthomosaics from raw UAV photographs, which requires a dedicated photogrammetry workflow.
 
 ## Docker
 
