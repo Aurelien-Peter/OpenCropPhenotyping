@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import rasterio
+from affine import Affine
 from PIL import Image
 from rasterio.transform import from_origin
 from rasterio.windows import Window
@@ -17,6 +18,7 @@ from opencropphenotyping.io import (
     resample_raster,
     select_bands,
     tile_raster,
+    validate_georeferenced_raster,
     write_georeferenced_tiff,
     write_raster,
     write_raster_as_png,
@@ -699,3 +701,65 @@ def test_tile_raster_invalid_tile_size(
             output_dir=tmp_path / "tiles",
             tile_size=tile_size,
         )
+
+def test_validate_georeferenced_raster_success(tmp_path):
+    raster_path = tmp_path / "valid.tif"
+
+    profile = {
+        "driver": "GTiff",
+        "width": 5,
+        "height": 4,
+        "count": 1,
+        "dtype": "uint8",
+        "crs": "EPSG:32631",
+        "transform": from_origin(340000, 4840000, 10, 10),
+    }
+
+    with rasterio.open(raster_path, "w", **profile) as dst:
+        dst.write(np.zeros((4, 5), dtype=np.uint8), 1)
+
+    metadata = validate_georeferenced_raster(raster_path)
+
+    assert metadata["crs"] == rasterio.crs.CRS.from_epsg(32631)
+    assert metadata["resolution"] == (10.0, 10.0)
+    assert metadata["width"] == 5
+    assert metadata["height"] == 4
+
+
+def test_validate_georeferenced_raster_missing_crs(tmp_path):
+    raster_path = tmp_path / "missing_crs.tif"
+
+    profile = {
+        "driver": "GTiff",
+        "width": 5,
+        "height": 4,
+        "count": 1,
+        "dtype": "uint8",
+        "transform": from_origin(340000, 4840000, 10, 10),
+    }
+
+    with rasterio.open(raster_path, "w", **profile) as dst:
+        dst.write(np.zeros((4, 5), dtype=np.uint8), 1)
+
+    with pytest.raises(ValueError, match="no CRS"):
+        validate_georeferenced_raster(raster_path)
+
+
+def test_validate_georeferenced_raster_identity_transform(tmp_path):
+    raster_path = tmp_path / "identity.tif"
+
+    profile = {
+        "driver": "GTiff",
+        "width": 5,
+        "height": 4,
+        "count": 1,
+        "dtype": "uint8",
+        "crs": "EPSG:32631",
+        "transform": Affine.identity(),
+    }
+
+    with rasterio.open(raster_path, "w", **profile) as dst:
+        dst.write(np.zeros((4, 5), dtype=np.uint8), 1)
+
+    with pytest.raises(ValueError, match="identity transform"):
+        validate_georeferenced_raster(raster_path)

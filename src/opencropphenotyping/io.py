@@ -1,8 +1,10 @@
+import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+from affine import Affine
 from matplotlib.figure import Figure
 from PIL import Image
 from rasterio.enums import Resampling
@@ -671,3 +673,89 @@ def tile_raster(
                 output_paths.append(tile_path)
 
     return output_paths
+
+def validate_georeferenced_raster(
+    input_path: Path,
+) -> dict[str, object]:
+    """
+    Validate the geospatial metadata of a raster.
+
+    Parameters
+    ----------
+    input_path : Path
+        Path to the input raster.
+
+    Returns
+    -------
+    dict[str, object]
+        Raster metadata including CRS, transform, resolution and bounds.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the input file does not exist.
+    ValueError
+        If the raster has missing or invalid geospatial metadata.
+    """
+    if not input_path.is_file():
+        raise FileNotFoundError(f"Raster file not found: {input_path}")
+
+    with rasterio.open(input_path) as src:
+        if src.crs is None:
+            raise ValueError("Raster has no CRS.")
+
+        transform = src.transform
+
+        if transform == Affine.identity():
+            raise ValueError(
+                "Raster has an identity transform; "
+                "georeferencing may be missing."
+            )
+
+        transform_values = (
+            transform.a,
+            transform.b,
+            transform.c,
+            transform.d,
+            transform.e,
+            transform.f,
+        )
+
+        if not all(math.isfinite(value) for value in transform_values):
+            raise ValueError("Raster transform contains non-finite values.")
+
+        determinant = transform.a * transform.e - transform.b * transform.d
+
+        if determinant == 0:
+            raise ValueError("Raster transform is singular.")
+
+        resolution = src.res
+
+        if not all(math.isfinite(value) and value > 0 for value in resolution):
+            raise ValueError("Raster resolution must be positive and finite.")
+
+        bounds = src.bounds
+
+        bounds_values = (
+            bounds.left,
+            bounds.bottom,
+            bounds.right,
+            bounds.top,
+        )
+
+        if not all(math.isfinite(value) for value in bounds_values):
+            raise ValueError("Raster bounds contain non-finite values.")
+
+        if bounds.left >= bounds.right or bounds.bottom >= bounds.top:
+            raise ValueError("Raster spatial bounds are invalid.")
+
+        return {
+            "path": input_path,
+            "crs": src.crs,
+            "transform": transform,
+            "resolution": resolution,
+            "bounds": bounds,
+            "width": src.width,
+            "height": src.height,
+            "count": src.count,
+        }
