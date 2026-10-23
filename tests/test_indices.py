@@ -4,12 +4,17 @@ import pytest
 from opencropphenotyping.indices import (
     _prepare_bands,
     compute_exg,
+    compute_exgr,
+    compute_exr,
+    compute_gli,
     compute_gndvi,
     compute_indexes,
     compute_ndre,
     compute_ndvi,
     compute_normalized_difference_index,
+    compute_rgbvi,
     compute_savi,
+    compute_vari,
 )
 
 
@@ -366,7 +371,11 @@ def test_exg_large_values():
     green = rgb_band[:, :, 1].astype(np.float32)
     blue = rgb_band[:, :, 2].astype(np.float32)
 
-    expected_exg = 2 * green - red - blue
+    expected_exg = (
+        2 * green.astype(np.float32)
+        - red.astype(np.float32)
+        - blue.astype(np.float32)
+    )
 
     computed_exg = compute_exg((red, green, blue))
     assert np.allclose(computed_exg, expected_exg), "exg computation failed for large values."
@@ -383,7 +392,11 @@ def test_exg_large_array():
     green = rgb_band[:, :, 1].astype(np.float32)
     blue = rgb_band[:, :, 2].astype(np.float32)
 
-    expected_exg = 2 * green - red - blue
+    expected_exg = (
+        2 * green.astype(np.float32)
+        - red.astype(np.float32)
+        - blue.astype(np.float32)
+    )
 
     computed_exg = compute_exg((red, green, blue))
     assert np.allclose(computed_exg, expected_exg), "exg computation failed for large values."
@@ -423,3 +436,90 @@ def test_exg_negative_values():
         computed_exg,
         expected_exg,
     )
+
+@pytest.fixture
+def simple_rgb():
+    """Provide a simple RGB image with known index values."""
+    red = np.array([[10]], dtype=np.uint8)
+    green = np.array([[20]], dtype=np.uint8)
+    blue = np.array([[5]], dtype=np.uint8)
+
+    return red, green, blue
+
+
+@pytest.mark.parametrize(
+    ("compute_index", "expected"),
+    [
+        (compute_exr, -6.0),
+        (compute_exgr, 31.0),
+        (compute_vari, 0.4),
+        (compute_gli, 25.0 / 55.0),
+        (compute_rgbvi, 7.0 / 9.0),
+    ],
+)
+def test_rgb_indices_values(simple_rgb, compute_index, expected):
+    """Test RGB vegetation indices against known values."""
+    result = compute_index(simple_rgb)
+
+    assert result.shape == (1, 1)
+    assert result.dtype == np.float32
+    np.testing.assert_allclose(result, [[expected]], rtol=1e-6)
+
+@pytest.mark.parametrize(
+    ("compute_index", "rgb"),
+    [
+        (
+            compute_vari,
+            (
+                np.array([[10]], dtype=np.uint8),
+                np.array([[5]], dtype=np.uint8),
+                np.array([[15]], dtype=np.uint8),
+            ),
+        ),
+        (
+            compute_gli,
+            (
+                np.array([[0]], dtype=np.uint8),
+                np.array([[0]], dtype=np.uint8),
+                np.array([[0]], dtype=np.uint8),
+            ),
+        ),
+        (
+            compute_rgbvi,
+            (
+                np.array([[0]], dtype=np.uint8),
+                np.array([[0]], dtype=np.uint8),
+                np.array([[0]], dtype=np.uint8),
+            ),
+        ),
+    ],
+)
+def test_normalized_rgb_indices_zero_denominator(
+    compute_index,
+    rgb,
+):
+    """Test that zero denominators produce NaN."""
+    result = compute_index(rgb)
+
+    assert result.dtype == np.float32
+    assert np.isnan(result[0, 0])
+
+def test_rgb_indices_large_uint8_values():
+    """Test normalized RGB indices with large uint8 values."""
+    rgb = (
+        np.array([[250]], dtype=np.uint8),
+        np.array([[255]], dtype=np.uint8),
+        np.array([[240]], dtype=np.uint8),
+    )
+
+    for compute_index in (
+        compute_exr,
+        compute_exgr,
+        compute_vari,
+        compute_gli,
+        compute_rgbvi,
+    ):
+        result = compute_index(rgb)
+
+        assert result.dtype == np.float32
+        assert np.all(np.isfinite(result))

@@ -144,7 +144,166 @@ def compute_savi(red_band: np.ndarray, nir_band: np.ndarray, L_factor : float = 
 
     return savi.astype(np.float32)
 
+def compute_exg(
+    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Compute the Excess Green Index (ExG).
+
+    Parameters
+    ----------
+    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
+        RGB image channels as (red, green, blue).
+
+    Returns
+    -------
+    np.ndarray
+        ExG image with dtype float32.
+    """
+    red, green, blue = (band.astype(np.float32) for band in rgb)
+
+    return 2 * green - red - blue
+
+def compute_exr(
+    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Compute the Excess Red Index (ExR).
+
+    Parameters
+    ----------
+    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
+        RGB image channels as (red, green, blue).
+
+    Returns
+    -------
+    np.ndarray
+        ExR image with dtype float32.
+    """
+    red, green, _ = (band.astype(np.float32) for band in rgb)
+
+    return 1.4 * red - green
+
+
+def compute_exgr(
+    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Compute the Excess Green minus Excess Red Index (ExGR).
+
+    Parameters
+    ----------
+    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
+        RGB image channels as (red, green, blue).
+
+    Returns
+    -------
+    np.ndarray
+        ExGR image with dtype float32.
+    """
+    exg = compute_exg(rgb)
+    exr = compute_exr(rgb)
+
+    return exg - exr
+
+
+def compute_vari(
+    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Compute the Visible Atmospherically Resistant Index (VARI).
+
+    Parameters
+    ----------
+    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
+        RGB image channels as (red, green, blue).
+
+    Returns
+    -------
+    np.ndarray
+        VARI image with dtype float32.
+    """
+    red, green, blue = (band.astype(np.float32) for band in rgb)
+
+    numerator = green - red
+    denominator = green + red - blue
+
+    result = np.full(numerator.shape, np.nan, dtype=np.float32)
+
+    np.divide(
+        numerator,
+        denominator,
+        out=result,
+        where=denominator != 0,
+    )
+
+    return result
+
+
+def compute_gli(
+    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Compute the Green Leaf Index (GLI).
+
+    Parameters
+    ----------
+    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
+        RGB image channels as (red, green, blue).
+
+    Returns
+    -------
+    np.ndarray
+        GLI image with dtype float32.
+    """
+    red, green, blue = (band.astype(np.float32) for band in rgb)
+
+    numerator = 2 * green - red - blue
+    denominator = 2 * green + red + blue
+
+    result = np.full(numerator.shape, np.nan, dtype=np.float32)
+
+    np.divide(
+        numerator,
+        denominator,
+        out=result,
+        where=denominator != 0,
+    )
+
+    return result
+
+
+def compute_rgbvi(
+    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> np.ndarray:
+    """Compute the Red Green Blue Vegetation Index (RGBVI).
+
+    Parameters
+    ----------
+    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
+        RGB image channels as (red, green, blue).
+
+    Returns
+    -------
+    np.ndarray
+        RGBVI image with dtype float32.
+    """
+    red, green, blue = (band.astype(np.float32) for band in rgb)
+
+    green_squared = green**2
+    red_blue = red * blue
+
+    numerator = green_squared - red_blue
+    denominator = green_squared + red_blue
+
+    result = np.full(numerator.shape, np.nan, dtype=np.float32)
+
+    np.divide(
+        numerator,
+        denominator,
+        out=result,
+        where=denominator != 0,
+    )
+
+    return result
+
 VEGETATION_INDICES = {
+    # Satellite
     "ndvi": {
         "function": compute_ndvi,
         "bands": ["red_band", "nir_band"],
@@ -161,6 +320,37 @@ VEGETATION_INDICES = {
         "function": compute_gndvi,
         "bands": ["nir_band", "green_band"],
     },
+    # UAV RGB
+    "exg": {
+        "bands": ["red_band", "green_band", "blue_band"],
+        "function": compute_exg,
+        "input_type": "rgb",
+    },
+    "exr": {
+        "bands": ["red_band", "green_band", "blue_band"],
+        "function": compute_exr,
+        "input_type": "rgb",
+    },
+    "exgr": {
+        "bands": ["red_band", "green_band", "blue_band"],
+        "function": compute_exgr,
+        "input_type": "rgb",
+    },
+    "vari": {
+        "bands": ["red_band", "green_band", "blue_band"],
+        "function": compute_vari,
+        "input_type": "rgb",
+    },
+    "gli": {
+        "bands": ["red_band", "green_band", "blue_band"],
+        "function": compute_gli,
+        "input_type": "rgb",
+    },
+    "rgbvi": {
+        "bands": ["red_band", "green_band", "blue_band"],
+        "function": compute_rgbvi,
+        "input_type": "rgb",
+    },
 }
 
 def compute_indexes(
@@ -168,6 +358,7 @@ def compute_indexes(
         nir_band: np.ndarray | None = None,
         green_band: np.ndarray | None = None,
         red_edge_band: np.ndarray | None = None,
+        blue_band: np.ndarray | None = None,
         indices: list[str] | None = None,
     ) -> dict[str, np.ndarray]:
     """Compute vegetation indices from available spectral bands.
@@ -182,6 +373,8 @@ def compute_indexes(
         Green spectral band.
     red_edge_band : np.ndarray or None, optional
         Red-edge spectral band.
+    blue_band : np.ndarray or None, optional
+        Blue spectral band.
     indices : list[str] or None, optional
         Names of the vegetation indices to compute. If None, all
         available vegetation indices are requested.
@@ -201,13 +394,14 @@ def compute_indexes(
     results = {}
 
     if indices is None:
-        indices = ["ndvi", "savi", "ndre", "gndvi"]
+        indices = list(VEGETATION_INDICES)
 
     available_bands = {
         "red_band": red_band,
         "nir_band": nir_band,
         "green_band": green_band,
         "red_edge_band": red_edge_band,
+        "blue_band": blue_band,
     }
 
     for index in indices:
@@ -227,27 +421,9 @@ def compute_indexes(
                 for band in required_bands
             ]
 
-            results[index] = compute_function(*band_arrays)
+            if index_config.get("input_type") == "rgb":
+                results[index] = compute_function(tuple(band_arrays))
+            else:
+                results[index] = compute_function(*band_arrays)
             
     return results
-    
-def compute_exg(
-    rgb: tuple[np.ndarray, np.ndarray, np.ndarray],
-) -> np.ndarray:
-    """Compute the Excess Green Index (ExG).
-
-    Parameters
-    ----------
-    rgb : tuple[np.ndarray, np.ndarray, np.ndarray]
-        RGB image channels as (red, green, blue).
-
-    Returns
-    -------
-    np.ndarray
-        ExG image with dtype float32.
-    """
-    red = rgb[0].astype(np.float32)
-    green = rgb[1].astype(np.float32)
-    blue = rgb[2].astype(np.float32)
-
-    return 2 * green - red - blue
