@@ -15,6 +15,7 @@ from opencropphenotyping.segmentation import (
     compute_row_boundaries_from_plot,
     compute_row_profile,
     compute_vegetation_centroids,
+    compute_vegetation_cover,
     compute_vegetation_fraction,
     count_vegetation_pixels,
     define_plant_search_windows,
@@ -1462,3 +1463,35 @@ def test_detect_plants(toy_dataset, monkeypatch):
         1, 2, 3,
         1, 2, 3,
     ]
+
+@pytest.mark.parametrize(
+    ("mask", "expected"),
+    [
+        (np.zeros((10, 10), dtype=bool), 0.0),
+        (np.ones((10, 10), dtype=bool), 100.0),
+        (
+            np.array([[1, 0], [0, 1]], dtype=bool),
+            50.0,
+        ),
+        (
+            np.array([[255, 0], [255, 0]], dtype=np.uint8),
+            50.0,
+        ),
+        (
+            np.array([[1, 2], [0, 0]], dtype=np.uint8),
+            50.0,
+        ),
+    ],
+)
+def test_compute_vegetation_cover(mask, expected):
+    result = compute_vegetation_cover(mask)
+
+    assert isinstance(result, float)
+    assert result == expected
+
+
+def test_compute_vegetation_cover_empty_mask():
+    mask = np.array([], dtype=bool)
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        compute_vegetation_cover(mask)

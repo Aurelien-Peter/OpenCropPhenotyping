@@ -40,6 +40,7 @@ The project includes automated testing, continuous integration, code coverage mo
 - [X] RGB UAV imagery reading
 - [X] RGB vegetation indices
 - [X] Vegetation segmentation
+- [X] Vegetation fraction estimation
 - [X] Crop-row orientation estimation
 - [X] Crop-row detection
 - [X] Crop-row boundary detection

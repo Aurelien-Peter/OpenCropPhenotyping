@@ -1318,3 +1318,29 @@ def compute_rotation_angle(
                                                 angles=np.array(np.round(np.arange(-90, 90, 1),1)))
         
     return(angle)
+
+def compute_vegetation_cover(mask: np.ndarray) -> float:
+    """Compute vegetation cover as a percentage of the image.
+
+    Parameters
+    ----------
+    mask : np.ndarray
+        Binary vegetation mask. Vegetation pixels must be non-zero.
+
+    Returns
+    -------
+    float
+        Percentage of pixels classified as vegetation, between 0 and 100.
+
+    Raises
+    ------
+    ValueError
+        If the mask is empty.
+    """
+    if mask.size == 0:
+        raise ValueError("The vegetation mask must not be empty.")
+
+    vegetation_pixels = np.count_nonzero(mask)
+    total_pixels = mask.size
+
+    return float(100 * vegetation_pixels / total_pixels)
